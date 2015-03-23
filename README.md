@@ -6,7 +6,23 @@ The DSL wraps [PyQuery](https://pythonhosted.org/pyquery/index.html).
 
 ## Example
 
-Given the following HTML:
+Given the following take template:
+
+```
+$ h1 | text
+    save: h1_title
+$ ul
+    save each: uls
+        $ li
+            | 0 [title]
+                save: title
+            | 1 text
+                save: second_li
+$ p | 1 text
+    save: p_text
+```
+
+And the following HTML:
 
 ```
 <div>
@@ -25,22 +41,6 @@ Given the following HTML:
         <li>B third li</li>
     </ul>
 </div>
-```
-
-And the following take template:
-
-```
-$ h1 | text
-    save: h1_title
-$ ul
-    save each: uls
-        $ li
-            | 0 [title]
-                save: title
-            | 1 text
-                save: second_li
-$ p | 1 text
-    save: p_text
 ```
 
 The following data will be extracted (presented in JSON format):
