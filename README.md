@@ -64,6 +64,7 @@ The following data will be extracted (presented in JSON format):
 
 Take templates always result in a single python `dict`.
 
+For a more complex example, see the [reddit sample](https://github.com/tiffon/take/blob/master/take/sample.py).
 
 ## Usage
 
