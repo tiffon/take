@@ -24,7 +24,7 @@ $ p | 1 text
 
 And the following HTML:
 
-```
+```html
 <div>
     <h1>Le Title 1</h1>
     <p>Some body here</p>
@@ -45,18 +45,18 @@ And the following HTML:
 
 The following data will be extracted (presented in JSON format):
 
-```
+```json
 {
     "h1_title": "Le Title 1",
     "p_text": "Another body here",
     "uls": [
         {
-            "title": "a less than awesome title"
-            "second_li": "A second li",
+            "title": "a less than awesome title",
+            "second_li": "A second li"
         },
         {
-            "title": "some awesome title"
-            "second_li": "B second li",
+            "title": "some awesome title",
+            "second_li": "B second li"
         }
     ]
 }
@@ -65,8 +65,70 @@ The following data will be extracted (presented in JSON format):
 Take templates always result in a single python `dict`.
 
 
+## Usage
 
 
+#### Creating a Take Template
+
+A take template can be created from either a `basestring` or an `Iterable` that will return one line per iteration.
+
+To create a template from a file:
+
+```python
+from take import TakeTemplate
+with open('yourfile.take') as f:
+    tt = TakeTemplate(f)
+```
+
+To create a template from a string:
+
+```python
+from take import TakeTemplate
+TMPL = """
+$ nav a
+    save each: nav
+        | text
+            save: text
+        | [href]
+            save: link
+"""
+tt = TakeTempalte(TMPL)
+```
+
+
+#### Using a Take Template
+
+To parse from a URL:
+
+```python
+data = tt(url='http://www.example.com')
+```
+
+To parse from a html string:
+
+```python
+data = tt('<div>hello world</div>')
+```
+
+To parse from a file:
+
+```python
+data = tt(filename=path_to_html_file)
+```
+
+Alternatively, the `take()` method can be used:
+
+```python
+data = tt.take(url='http://www.example.com')
+```
+
+Valid parameters for the template callable or the `take()` method are the same as those for the [PyQuery constructor](https://pythonhosted.org/pyquery/index.html#quickstart).
+
+Additionally, if the `'base_url'` keyword parameter is supplied, all relative URLs will be made absolute via the value of `'base_url'`.
+
+```python
+data = tt(url='http://www.example.com', base_url='http://www.example.com')
+```
 
 
 
@@ -84,7 +146,6 @@ Take templates are whitespace sensitive and are comprised of three types of line
 * A `save each` directive
  * `save each: entries`
  * `save each: popular.movies`
- * `save each: popular.tvshows`
 
 
 
@@ -191,7 +252,7 @@ $ a | 0
 
 And the following HTML:
 
-```
+```html
 <div>
     <a href="http://www.example.com">fo sho</a>
     <a href="http://www.another.com">psych out</a>
@@ -200,7 +261,7 @@ And the following HTML:
 
 Will result in the following python `dict`:
 
-```
+```python
 {
     'first_a': {
         'text': 'fo sho',
@@ -238,7 +299,7 @@ $ a
 
 Applying the above take template to the following HTML:
 
-```
+```html
 <div>
     <a href="http://www.example.com">fo sho</a>
     <a href="http://www.another.com">psych out</a>
@@ -247,7 +308,7 @@ Applying the above take template to the following HTML:
 
 Will result in the following python `dict`:
 
-```
+```python
 {
     'anchors': [{
             'text': 'fo sho',
