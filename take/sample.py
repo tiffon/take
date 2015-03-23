@@ -39,7 +39,7 @@ $ #siteTable .thing
 
 def get_reddit():
     tt = TakeTemplate(REDDIT_TMPL)
-    return tt, tt(url=REDDIT_URL)
+    return tt, tt(url=REDDIT_URL, base_url=REDDIT_URL)
 
 if __name__ == '__main__':
     try:
