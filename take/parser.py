@@ -60,7 +60,14 @@ def make_css_query(selector):
 
 def make_index_query(index_str):
     index = int(index_str)
-    return lambda elm: ensure_pq(elm).eq(index)
+    if index > -1:
+        return lambda elm: ensure_pq(elm).eq(index)
+    # PyQuery doesn't handle negative indexes, so calc the real index each time
+    def index_query(elm):
+        elm = ensure_pq(elm)
+        i = len(elm) + index
+        return elm.eq(i)
+    return index_query
 
 def make_text_query():
     return lambda elm: ensure_pq(elm).text()

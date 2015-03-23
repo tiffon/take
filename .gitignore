@@ -4,3 +4,5 @@ venv
 *.pyc
 *.pyo
 .tmp
+*.egg-info
+*.egg
