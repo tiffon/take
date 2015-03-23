@@ -75,16 +75,16 @@ Take templates always result in a single python `dict`.
 Take templates are whitespace sensitive and are comprised of three types of lines:
 
 * A query
-** `$ h1`
-** `| text`
-** `$ h1 | 0 text`
+ * `$ h1`
+ * `| text`
+ * `$ h1 | 0 text`
 * A `save` directive
-** `save: h1_title`
-** `save: time.exact`
+ * `save: h1_title`
+ * `save: time.exact`
 * A `save each` directive
-** `save each: entries`
-** `save each: popular.movies`
-** `save each: popular.tvshows`
+ * `save each: entries`
+ * `save each: popular.movies`
+ * `save each: popular.tvshows`
 
 
 
