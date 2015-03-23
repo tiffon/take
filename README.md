@@ -138,7 +138,7 @@ The level of indentation on each line defines the context for the line.
 
 The root context of a take template is the current document being processed. Every statement that is not indented is executed against the document being processed.
 
-Each line that is indented more deeply has the result has a context that is the result of the last query in the parent context. For example:
+Each line that is indented more deeply has a context that is the result of the last query in the parent context. For example:
 
 ```
 $ #some-id
@@ -146,7 +146,7 @@ $ #some-id
     $ div
 ```
 
-The query on the first line is execuated against the document being processed. The query on the second line is executed against the result of the first line. So, the second line is synonomous with `$ #some-id li`. The query on the third line is also executed against the result of the first line. So, it can be re-written as `$ #some-id div`.
+The query on the first line is executed against the document being processed. The query on the second line is executed against the result of the first line. So, the second line is synonomous with `$ #some-id li`. The query on the third line is also executed against the result of the first line. So, it can be re-written as `$ #some-id div`.
 
 Another example:
 
