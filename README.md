@@ -47,18 +47,18 @@ The following data will be extracted (presented in JSON format):
 
 ```
 {
+    "h1_title": "Le Title 1",
+    "p_text": "Another body here",
     "uls": [
         {
-            "second_li": "A second li",
             "title": "a less than awesome title"
+            "second_li": "A second li",
         },
         {
-            "second_li": "B second li",
             "title": "some awesome title"
+            "second_li": "B second li",
         }
-    ],
-    "p_text": "Another body here",
-    "h1_title": "Le Title 1"
+    ]
 }
 ```
 
