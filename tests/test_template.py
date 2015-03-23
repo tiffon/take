@@ -102,13 +102,13 @@ def test_deep_save():
 
 def test_sub_ctx():
     TMPL = """
-        $ nav
+        $ section
             $ ul | [id]
                 save: value
     """
     tt = TakeTemplate(TMPL)
     data = tt(HTML_FIXTURE)
-    assert data == {'value': 'first-ul'}
+    assert data == {'value': 'second-ul'}
 
 
 def test_sub_ctx_empty():
