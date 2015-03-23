@@ -5,28 +5,30 @@ from take.parser import UnexpectedTokenError, InvalidDirectiveError
 from take.scanner import ScanError
 
 HTML_FIXTURE = """
-<h1 id="id-on-h1">Text in h1</h1>
-<nav>
-    <ul id="first-ul" title="nav ul title">
-        <li>
-            <a href="/local/a">first nav item</a>
-        </li>
-        <li>
-            <a href="/local/b">second nav item</a>
-        </li>
-    </ul>
-</nav>
-<section>
-    <p>some description</p>
-    <ul id="second-ul" title="content ul title">
-        <li>
-            <a href="http://ext.com/a">first content link</a>
-        </li>
-        <li>
-            <a href="http://ext.com/b">second content link</a>
-        </li>
-    </ul>
-</section>
+<div>
+    <h1 id="id-on-h1">Text in h1</h1>
+    <nav>
+        <ul id="first-ul" title="nav ul title">
+            <li>
+                <a href="/local/a">first nav item</a>
+            </li>
+            <li>
+                <a href="/local/b">second nav item</a>
+            </li>
+        </ul>
+    </nav>
+    <section>
+        <p>some description</p>
+        <ul id="second-ul" title="content ul title">
+            <li>
+                <a href="http://ext.com/a">first content link</a>
+            </li>
+            <li>
+                <a href="http://ext.com/b">second content link</a>
+            </li>
+        </ul>
+    </section>
+</div>
 """
 
 def test_template_compiles():
@@ -58,6 +60,16 @@ def test_index():
     assert data == {'value': 'first nav item'}
 
 
+def test_absent_index():
+    TMPL = """
+        $ i | 0 text
+            save: value
+    """
+    tt = TakeTemplate(TMPL)
+    data = tt(HTML_FIXTURE)
+    assert data == {'value': ''}
+
+
 def test_neg_index():
     TMPL = """
         $ a | -1 text
@@ -66,6 +78,16 @@ def test_neg_index():
     tt = TakeTemplate(TMPL)
     data = tt(HTML_FIXTURE)
     assert data == {'value': 'second content link'}
+
+
+def test_absent_neg_index():
+    TMPL = """
+        $ i | -1 text
+            save: value
+    """
+    tt = TakeTemplate(TMPL)
+    data = tt(HTML_FIXTURE)
+    assert data == {'value': ''}
 
 
 def test_deep_save():
