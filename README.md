@@ -66,6 +66,8 @@ Take templates always result in a single python `dict`.
 
 For a more complex example, see the [reddit sample](https://github.com/tiffon/take/blob/master/take/sample.py).
 
+
+
 ## Usage
 
 
@@ -95,6 +97,15 @@ $ nav a
 """
 tt = TakeTempalte(TMPL)
 ```
+
+Additionally, a `base_url` keyword argument can be specified which will cause relative URLs to be made absolute via the value of the `base_url` parameter for any documents that are processed.
+
+```python
+tt = TakeTempalte(TMPL, base_url='http://www.example.com')
+```
+
+If a `base_url` is provided when the template is used, it will override the `base_url` provided when the template was created. The `base_url` parameter must be provided as a keyword argument.
+
 
 
 #### Using a Take Template

@@ -229,6 +229,19 @@ def test_base_url():
                     'ext': 'http://ext.com/b'}
 
 
+def test_base_url_on_tmpl():
+    TMPL = """
+        $ a | 0 [href]
+            save: local
+        $ a | -1 [href]
+            save: ext
+    """
+    tt = TakeTemplate(TMPL, base_url='http://www.example.com')
+    data = tt(HTML_FIXTURE)
+    assert data == {'local': 'http://www.example.com/local/a',
+                    'ext': 'http://ext.com/b'}
+
+
 def test_invalid_directive_statement_error():
     TMPL = """
         $ h1 | [href]

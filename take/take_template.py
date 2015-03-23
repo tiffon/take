@@ -5,11 +5,12 @@ import parser
 
 class TakeTemplate(object):
 
-    def __init__(self, src):
+    def __init__(self, src, **kwargs):
         self.node = parser.parse(src)
+        self.base_url = kwargs.get('base_url', None)
 
     def take(self, *args, **kwargs):
-        base_url = kwargs.pop('base_url', None)
+        base_url = kwargs.pop('base_url', None) or self.base_url
         _doc = PyQuery(*args, **kwargs)
         if base_url:
             _doc.make_links_absolute(base_url)
