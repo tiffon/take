@@ -1,10 +1,9 @@
-
-from cStringIO import StringIO
 from collections import namedtuple
 
 from pyquery import PyQuery
 
-from scanner import Scanner, TokenType
+from ._compat import string_types, StringIO
+from .scanner import Scanner, TokenType
 
 
 class AlreadyParsedError(Exception):
@@ -192,7 +191,7 @@ class ContextParser(object):
 
     def _next_tok(self, eof_errors=True):
         try:
-            self._tok = self._tok_generator.next()
+            self._tok = next(self._tok_generator)
             return self._tok
         except StopIteration:
             self._tok = None
@@ -338,13 +337,13 @@ class ContextParser(object):
 
 
 def parse(src):
-    if isinstance(src, basestring):
+    if isinstance(src, string_types):
         fobj = StringIO(src)
     else:
         fobj = src
     scanner = Scanner(fobj)
     tok_generator = scanner.scan()
-    tok = tok_generator.next()
+    tok = next(tok_generator)
     if tok.type_ != TokenType.Context:
         raise UnexpectedTokenError(tok.type_, TokenType.Context, 'Leading context token not found')
     ctx_parser = ContextParser(tok.end, tok_generator)

@@ -6,5 +6,7 @@ venv
 .tmp
 *.egg-info
 *.egg
-build/
-dist/
+build
+dist
+tox
+.tox

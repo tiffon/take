@@ -1,12 +1,12 @@
 from pyquery import PyQuery
 
-import parser
+from .parser import parse
 
 
 class TakeTemplate(object):
 
     def __init__(self, src, **kwargs):
-        self.node = parser.parse(src)
+        self.node = parse(src)
         self.base_url = kwargs.get('base_url', None)
 
     def take(self, *args, **kwargs):

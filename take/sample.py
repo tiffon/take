@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from take_template import TakeTemplate
 
 
@@ -47,6 +49,6 @@ if __name__ == '__main__':
     except ImportError:
         import json
     _, data = get_reddit()
-    print 'Total reddit entries:', len(data['entries'])
-    print 'Printing the first two:'
-    print json.dumps(data['entries'][0:2], indent=4)
+    print('Total reddit entries:', len(data['entries']))
+    print('Printing the first two:')
+    print(json.dumps(data['entries'][0:2], indent=4))

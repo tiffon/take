@@ -90,14 +90,14 @@ To create a template from a string:
 .. code:: python
 
     from take import TakeTemplate
-    TMPL = \"""
+    TMPL = """
     $ nav a
         save each: nav
             | text
                 save: text
             | [href]
                 save: link
-    \"""
+    """
     tt = TakeTempalte(TMPL)
 
 Additionally, a ``base_url`` keyword argument can be specified which
@@ -215,30 +215,30 @@ the line. There are three non-CSS Selector queries:
 
 -  Element indexes
 
-    -  Syntax: an integer
+   -  Syntax: an integer
 
-    -  ``| 0`` will return the first element in the current context
+   -  ``| 0`` will return the first element in the current context
 
-    -  ``| 1`` will return the second element in the current context
+   -  ``| 1`` will return the second element in the current context
 
 -  Text retrieval
 
-    -  Syntax: ``text``
+   -  Syntax: ``text``
 
-    -  ``| text`` will return the text of the current context
+   -  ``| text`` will return the text of the current context
 
-    -  ``| 1 text`` will first get the second element in the current context
-       and then return it’s text
+   -  ``| 1 text`` will first get the second element in the current context
+      and then return it’s text
 
 -  Attribute retrieval
 
-    -  Syntax: ``[attr]``
+   -  Syntax: ``[attr]``
 
-    -  ``| [href]`` will return the value of the ``href`` attribute of the
-       first element in the current context
+   -  ``| [href]`` will return the value of the ``href`` attribute of the
+      first element in the current context
 
-    -  ``| 1 [href]`` will return the value of the ``href`` attribute of the
-       second element in the current context
+   -  ``| 1 [href]`` will return the value of the ``href`` attribute of the
+      second element in the current context
 
 **Order matters**: Index queries should precede text or attribute
 retrieval queries. Only one of text or attribute queries can be used;
