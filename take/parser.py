@@ -20,11 +20,12 @@ class UnexpectedTokenError(Exception):
         self.token = token
 
     def __str__(self):
-        s = '\n\t' + str(self.msg) if self.msg else ''
-        s += '\n\t found %r \n\t expecting %r' % (self.found, self.expected)
-        if self.token:
-            s += '\n  ' + str(self.token)
-        return s
+        return ('UnexpectedTokenError {{\n'
+                '       found: {!r}\n'
+                '    expected: {!r}\n'
+                '         msg: {!r}\n'
+                '       token: {}\n'
+                '}}').format(self.found, self.expected, self.msg, self.token)
 
 class InvalidDirectiveError(Exception):
     def __init__(self, ident, msg=None):
@@ -32,20 +33,21 @@ class InvalidDirectiveError(Exception):
         self.msg = msg
 
     def __str__(self):
-        s = '\n\t' + str(self.msg) if self.msg else ''
-        s += '\n\t ' + str(self.ident)
-        return s
+        return ('InvalidDirectiveError {{\n'
+                '      ident: {!r}\n'
+                '    message: {!r}\n'
+                '}}').format(self.ident, self.message)
 
-class SyntaxError(Exception):
+class TakeSyntaxError(Exception):
     def __init__(self, msg, extra=None):
         self.msg = msg
         self.extra = extra
 
     def __str__(self):
-        s = '\n\t %s' % self.msg
-        if self.extra:
-            s += '\n\t %r' % self.extra
-        return s
+        return ('TakeSyntaxError {{\n'
+                '      message: {!r}\n'
+                '        extra: {!r}\n'
+                '}}').format(self.message, self.extra)
 
 
 def ensure_pq(elm):
@@ -327,7 +329,7 @@ class ContextParser(object):
         if tok.type_ != TokenType.Context:
             raise UnexpectedTokenError(tok.type_, TokenType.Context, token=tok)
         if tok.end <= self._depth:
-            raise SyntaxError('Invalid depth, expecting to start a "save each" context.', extra=tok)
+            raise TakeSyntaxError('Invalid depth, expecting to start a "save each" context.', extra=tok)
         sub_ctx = ContextParser(tok.end, self._tok_generator)
         sub_ctx_node, tok = sub_ctx.parse()
         sub_ctx.destroy()

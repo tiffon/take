@@ -35,12 +35,13 @@ class Token(namedtuple('Token', 'type_ content line line_num start end')):
     __slots__ = ()
 
     def __repr__(self):
-        return ('Token:\n'
+        return ('Token: {{\n'
                 '        type_: {!r}\n'
                 '      content: "{}"\n'
                 '     line num: {}\n'
                 '   start, end: {}, {}\n'
-                '         line: "{}"').format(self.type_, self.content, self.line_num, self.start, self.end, self.line)
+                '         line: "{}"\n'
+                '}}').format(self.type_, self.content, self.line_num, self.start, self.end, self.line)
 
 
 class ScanError(Exception):
@@ -55,6 +56,17 @@ class ScanError(Exception):
         self.line_num = line_num
         self.pos = pos
         self.extra = extra
+
+    def __str__(self):
+        return ('ScanError: {{\n'
+                '      message: {!r}\n'
+                '         line: "{}"\n'
+                '                {}^\n'
+                '     line num: {}\n'
+                '          pos: {}\n'
+                '        extra: {!r}\n'
+                '}}').format(self.message, self.line, ' ' * self.pos,
+                                              self.line_num, self.pos, self.extra)
 
 
 class Scanner(object):
@@ -184,7 +196,7 @@ class Scanner(object):
     def _scan_context(self):
         m = _CTX_WS_RX.search(self.line)
         if not m:
-            raise ScanError.make('Invalid state: error parsing context', self)
+            raise ScanError.make(self, 'Invalid state: error parsing context')
         self.pos = m.start()
         tok = self._make_token(TokenType.Context)
         return self._scan_statement, tok

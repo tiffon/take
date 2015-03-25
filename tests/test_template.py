@@ -1,7 +1,7 @@
 import pytest
 
 from take import TakeTemplate
-from take.parser import UnexpectedTokenError, InvalidDirectiveError
+from take.parser import InvalidDirectiveError, UnexpectedTokenError, TakeSyntaxError
 from take.scanner import ScanError
 
 HTML_FIXTURE = """
@@ -275,4 +275,15 @@ def test_attr_text_error():
             save: fail
     """
     with pytest.raises(UnexpectedTokenError):
+        tt = TakeTemplate(TMPL)
+
+
+def test_invalid_save_each_context():
+    TMPL = """
+        $ li
+            save each: items
+        $ h1
+            save: fail
+    """
+    with pytest.raises(TakeSyntaxError):
         tt = TakeTemplate(TMPL)
