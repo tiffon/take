@@ -45,8 +45,8 @@ class Token(namedtuple('Token', 'type_ content line line_num start end')):
 
 class ScanError(Exception):
 
-    @classmethod
-    def make(cls, scanner, msg, extra=None):
+    @staticmethod
+    def make(scanner, msg, extra=None):
         return ScanError(msg, scanner.line, scanner.line_num, scanner.pos, extra)
 
     def __init__(self, message, line, line_num, pos, extra=None):
