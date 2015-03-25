@@ -6,3 +6,5 @@ venv
 .tmp
 *.egg-info
 *.egg
+build/
+dist/
