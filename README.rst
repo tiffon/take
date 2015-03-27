@@ -5,11 +5,13 @@ a site in one place (I prefer CSS selectors over anything else).
 
 The DSL wraps `PyQuery`_.
 
-`Github repository <https://github.com/tiffon/take>`_
+A few links:
 
-`PyPi package <https://pypi.python.org/pypi/take>`_
+* `Github repository <https://github.com/tiffon/take>`_
 
-`Discussion group <https://groups.google.com/forum/#!forum/take-dsl>`_
+* `PyPi package <https://pypi.python.org/pypi/take>`_
+
+* `Discussion group <https://groups.google.com/forum/#!forum/take-dsl>`_
 
 Example
 -------
