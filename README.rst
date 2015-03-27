@@ -5,6 +5,12 @@ a site in one place (I prefer CSS selectors over anything else).
 
 The DSL wraps `PyQuery`_.
 
+`Github repository <https://github.com/tiffon/take>`_
+
+`PyPi package <https://pypi.python.org/pypi/take>`_
+
+`Discussion group <https://groups.google.com/forum/#!forum/take-dsl>`_
+
 Example
 -------
 
@@ -67,6 +73,14 @@ The following data will be extracted (presented in JSON format):
 Take templates always result in a single python ``dict``.
 
 For a more complex example, see the `reddit sample`_.
+
+Install
+-------
+
+.. code::
+
+    pip install take
+
 
 Usage
 -----
