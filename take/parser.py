@@ -329,7 +329,8 @@ class ContextParser(object):
         if tok.type_ != TokenType.Context:
             raise UnexpectedTokenError(tok.type_, TokenType.Context, token=tok)
         if tok.end <= self._depth:
-            raise TakeSyntaxError('Invalid depth, expecting to start a "save each" context.', extra=tok)
+            raise TakeSyntaxError('Invalid depth, expecting to start a "save each" context.',
+                                  extra=tok)
         sub_ctx = ContextParser(tok.end, self._tok_generator)
         sub_ctx_node, tok = sub_ctx.parse()
         sub_ctx.destroy()

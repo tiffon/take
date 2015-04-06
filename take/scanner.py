@@ -66,7 +66,7 @@ class ScanError(Exception):
                 '          pos: {}\n'
                 '        extra: {!r}\n'
                 '}}').format(self.message, self.line, ' ' * self.pos,
-                                              self.line_num, self.pos, self.extra)
+                             self.line_num, self.pos, self.extra)
 
 
 class Scanner(object):

@@ -3,6 +3,17 @@ Take Changelog
 
 Here you can see the full list of changes between each take release.
 
+Version 0.0.5
+-------------
+
+Released on April 6 2015.
+
+- `TakeTemplate.from_file()` static method added.
+- README.rst updated to include `TakeTemplate.from_file()`.
+- Moved the reddit sample out of the package code.
+- Minor misc cleanup.
+
+
 Version 0.0.4
 -------------
 

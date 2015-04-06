@@ -93,14 +93,6 @@ Creating a Take Template
 A take template can be created from either a ``basestring`` or an
 ``Iterable`` that will return one line per iteration.
 
-To create a template from a file:
-
-.. code:: python
-
-    from take import TakeTemplate
-    with open('yourfile.take') as f:
-        tt = TakeTemplate(f)
-
 To create a template from a string:
 
 .. code:: python
@@ -114,7 +106,15 @@ To create a template from a string:
             | [href]
                 save: link
     """
-    tt = TakeTempalte(TMPL)
+    tt = TakeTemplate(TMPL)
+
+The static method `TakeTemplate.from_file()` can be used to create a template
+from a file:
+
+.. code:: python
+
+    from take import TakeTemplate
+    tt = TakeTemplate.from_file('yourfile.take')
 
 Additionally, a ``base_url`` keyword argument can be specified which
 will cause relative URLs to be made absolute via the value of the
