@@ -4,10 +4,10 @@ Take Changelog
 Here you can see the full list of changes between each take release.
 
 
-Unpublished
------------
+Version 0.1.0
+-------------
 
-Release pending.
+Released on April 6 2015.
 
 - Inline sub-contexts added.
 - Added ``:`` as an alias for ``save:``.

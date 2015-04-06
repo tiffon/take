@@ -442,7 +442,6 @@ Will result in the following python ``dict``:
         ]
     }
 
-
 Inline Sub Contexts
 -------------------
 
