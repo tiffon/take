@@ -74,6 +74,18 @@ The following data will be extracted (presented in JSON format):
 
 Take templates always result in a single python ``dict``.
 
+The template can also be written in the following, more concise, syntax:
+
+::
+
+    $ h1 | text ;                   : h1_title
+    $ ul
+        save each                   : uls
+            $ li
+                | 0 [title] ;           : title
+                | 1 text ;              : second_li
+    $ p | 1 text ;                  : p_text
+
 For a more complex example, see the `reddit sample <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_ (`inline version <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_).
 
 Install
