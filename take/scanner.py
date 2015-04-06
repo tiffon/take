@@ -9,12 +9,16 @@ _INT_RX = re.compile(r'-?\d+')
 
 
 class Keywords(object):
-    css_start_delim = '$'
-    accessor_start_delim = '|'
+    css_start = '$'
+    accessor_start = '|'
     attr_accessor_start = '['
     attr_accessor_end = ']'
     text_accessor = 'text'
+    query_end = ';'
 
+class KeywordSets(object):
+    query_start = Keywords.css_start + Keywords.accessor_start
+    css_query_end = Keywords.accessor_start + Keywords.query_end
 
 TokenType = Enum('TokenType', ' '.join((
     'Context',
@@ -28,6 +32,7 @@ TokenType = Enum('TokenType', ' '.join((
     'DirectiveStatement',
     'DirectiveIdentifier',
     'DirectiveBodyItem',
+    'InlineSubContext'
     )))
 
 
@@ -202,14 +207,20 @@ class Scanner(object):
         return self._scan_statement, tok
 
     def _scan_statement(self):
-        if self._c.isalpha():
+        if self._c.isalpha() or self._c == ':':
             tok = self._make_marker_token(TokenType.DirectiveStatement)
             return self._scan_directive, tok
-        else:
+        elif self._c in KeywordSets.query_start:
             tok = self._make_marker_token(TokenType.QueryStatement)
             return self._scan_query_statement, tok
+        else:
+            raise ScanError.make(self, 'Unknown statement type, starts with %r' % self._c)
 
     def _scan_directive(self):
+        # a directive without any text is valid, considered an alias to "save"
+        if self._accept(':'):
+            tok = self._make_token(TokenType.DirectiveIdentifier)
+            return self._scan_directive_body, tok
         ok = self._accept(alpha=True)
         if not ok:
             raise ScanError.make(self, 'Invalid directive, must start with an alpha, not %s' % self._c)
@@ -230,27 +241,32 @@ class Scanner(object):
         return None if self._eol else self._scan_directive_body, tok
 
     def _scan_query_statement(self):
-        if self._c == Keywords.css_start_delim:
+        if self._c == Keywords.css_start:
             return self._scan_css_selector()
-        elif self._c == Keywords.accessor_start_delim:
+        elif self._c == Keywords.accessor_start:
             return self._scan_accessor_sequence()
         else:
             raise ScanError.make(self, 'Invalid query statement: %s' % self._to_eol_content)
 
     def _end_query_statement(self):
         tok = self._make_marker_token(TokenType.QueryStatementEnd)
-        return None, tok
+        if self._eol:
+            return None, tok
+        elif self._c == Keywords.query_end:
+            return self._scan_inline_sub_ctx, tok
+        else:
+            raise ScanError.make(self, 'Invalid end of query statement: %r' % self._to_eol_content)
 
     def _scan_css_selector(self):
-        self._accept(Keywords.css_start_delim)
+        self._accept(Keywords.css_start)
         self._accept_run(' ')
         self._ignore()
-        if self._accept_until(Keywords.accessor_start_delim) < 1:
+        if self._accept_until(KeywordSets.css_query_end) < 1:
             raise ScanError.make(self, 'Invalid CSS Selector: %s' % self._to_eol_content)
         tok = self._make_token(TokenType.CSSSelector)
-        if self._eol:
+        if self._eol or self._c == Keywords.query_end:
             return self._end_query_statement, tok
-        elif self._c == Keywords.accessor_start_delim:
+        elif self._c == Keywords.accessor_start:
             return self._scan_accessor_sequence, tok
         else:
             raise ScanError.make(self, 'EOL or accessor sequence expected, instead found %s' % self._to_eol_content)
@@ -259,14 +275,14 @@ class Scanner(object):
         # create the marker token at the start of the sequence
         tok = self._make_marker_token(TokenType.AccessorSequence)
         # skip the initial marker character
-        self._accept(Keywords.accessor_start_delim)
+        self._accept(Keywords.accessor_start)
         self._ignore()
         return self._scan_accessor, tok
 
     def _scan_accessor(self):
         self._accept_run(' ')
         self._ignore()
-        if self._eol:
+        if self._eol or self._c == Keywords.query_end:
             return self._end_query_statement()
         elif self._c == Keywords.attr_accessor_start:
             # attribute accessor
@@ -285,3 +301,10 @@ class Scanner(object):
                 raise ScanError.make(self, 'Expected an accessor, instead found: %s' % self._to_eol_content)
             tok = self._make_token(TokenType.IndexAccessor)
             return self._scan_accessor, tok
+
+    def _scan_inline_sub_ctx(self):
+        self._accept_run(';')
+        tok = self._make_token(TokenType.InlineSubContext)
+        self._accept_run(' ')
+        self._ignore()
+        return self._scan_statement, tok

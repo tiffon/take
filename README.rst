@@ -74,7 +74,7 @@ The following data will be extracted (presented in JSON format):
 
 Take templates always result in a single python ``dict``.
 
-For a more complex example, see the `reddit sample`_.
+For a more complex example, see the `reddit sample <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_ (`inline version <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_).
 
 Install
 -------
@@ -90,8 +90,16 @@ Usage
 Creating a Take Template
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-A take template can be created from either a ``basestring`` or an
-``Iterable`` that will return one line per iteration.
+A take template can be created from a file via the static method
+``TakeTemplate.from_file()``.
+
+.. code:: python
+
+    from take import TakeTemplate
+    tt = TakeTemplate.from_file('yourfile.take')
+
+The ``TakeTemplate`` constructor can be used to create a template from either
+a ``basestring`` or an ``Iterable``.
 
 To create a template from a string:
 
@@ -108,19 +116,13 @@ To create a template from a string:
     """
     tt = TakeTemplate(TMPL)
 
-The static method `TakeTemplate.from_file()` can be used to create a template
-from a file:
-
-.. code:: python
-
-    from take import TakeTemplate
-    tt = TakeTemplate.from_file('yourfile.take')
-
 Additionally, a ``base_url`` keyword argument can be specified which
 will cause relative URLs to be made absolute via the value of the
 ``base_url`` parameter for any documents that are processed.
 
 .. code:: python
+
+    tt = TakeTemplate.from_file('yourfile.take', base_url='http://www.example.com')
 
     tt = TakeTempalte(TMPL, base_url='http://www.example.com')
 
@@ -169,7 +171,7 @@ Take Templates
 --------------
 
 Take templates are whitespace sensitive and are comprised of three types
-of lines:
+of statements:
 
 -  A query
 
@@ -190,6 +192,9 @@ of lines:
    -  ``save each: entries``
 
    -  ``save each: popular.movies``
+
+There are also inline sub-contexts, which are described in the
+`Inline Sub-Contexts <#inline-sub-contexts>`_ section.
 
 Queries
 -------
@@ -317,6 +322,12 @@ Their syntax is:
 
     save: identifier
 
+``:`` is an alias for ``save:``. So, a save directive can also be written as:
+
+::
+
+    : identifier
+
 Any non-whitespace characters can be used as the identifier. Also, the
 identifier can contain dots (``.``), which designate sub-\ ``dicts`` for
 saving.
@@ -350,6 +361,16 @@ Will result in the following python ``dict``:
             'href': 'http://www.example.com'
         }
     }
+
+Using the ``:`` alias, the template can be written as:
+
+::
+
+    $ a | 0
+        | text
+            : first_a.text
+        | [href]
+            : first_a.href
 
 Save Each Directives
 --------------------
@@ -409,8 +430,51 @@ Will result in the following python ``dict``:
         ]
     }
 
+
+Inline Sub Contexts
+-------------------
+
+Very often take templates contain statements like the following:
+
+::
+
+    $ h1 | text
+        save: section_title
+
+Inline sub-contexts can make statements like these more succinct. Inline
+sub-contexts allow you to create a sub-context on the same line as a query.
+
+The syntax is:
+
+::
+
+    query ; sub-context-statement
+
+For example, the template above that saves the ``h1`` text can be re-written as:
+
+::
+
+    $ h1 | text ; save: section_title
+
+This can be handy for larger templates. The sample at the beginning of this document
+becomes:
+
+::
+
+    $ h1 | text ;                   : h1_title
+    $ ul
+        save each                   : uls
+            $ li
+                | 0 [title] ;           : title
+                | 1 text ;              : second_li
+    $ p | 1 text ;                  : p_text
+
+This version of the template also uses the ``:`` alias for save. Additionally,
+whitespace is used to offset the identifiers in the ``save`` and ``save each``
+statements to make the structure of the resulting data more apparent.
+
+
 .. _PyQuery: https://pythonhosted.org/pyquery/index.html
-.. _reddit sample: https://github.com/tiffon/take/blob/master/sample/reddit.take
 .. _PyQuery constructor: https://pythonhosted.org/pyquery/index.html#quickstart
 .. _bugs: https://github.com/gawel/pyquery/issues
 .. _lxml: http://lxml.de/

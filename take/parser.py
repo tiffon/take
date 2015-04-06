@@ -1,4 +1,5 @@
 from collections import namedtuple
+import sys
 
 from pyquery import PyQuery
 
@@ -219,8 +220,22 @@ class ContextParser(object):
             if self._is_done:
                 # returning None means EOF ended this context, not a context exit
                 return
-            if tok.type_ != TokenType.Context:
-                raise UnexpectedTokenError(self._tok.type_, TokenType.Context, token=tok)
+            if tok.type_ not in (TokenType.Context, TokenType.InlineSubContext):
+                raise UnexpectedTokenError(self._tok.type_,
+                                           (TokenType.Context, TokenType.InlineSubContext),
+                                           token=tok)
+            if tok.type_ == TokenType.InlineSubContext:
+                end_tok = self._parse_inline_context()
+                if not end_tok:
+                    # reached EOF
+                    return
+                else:
+                    # should be a context token
+                    if end_tok.type_ != TokenType.Context:
+                        raise UnexpectedTokenError(self._tok.type_, TokenType.Context, token=tok)
+                    # end_tok should be treated like any other context token, either indicates a
+                    # sub-context, releases to the parent context or continues in this context
+                    tok = end_tok
             if tok.end > self._depth:
                 end_tok = self._parse_context()
                 if not end_tok:
@@ -241,6 +256,13 @@ class ContextParser(object):
 
     def _parse_context(self):
         sub_ctx = ContextParser(self._tok.end, self._tok_generator)
+        sub_ctx_node, tok = sub_ctx.parse()
+        self._nodes.append(sub_ctx_node)
+        sub_ctx.destroy()
+        return tok
+
+    def _parse_inline_context(self):
+        sub_ctx = ContextParser(sys.maxsize, self._tok_generator)
         sub_ctx_node, tok = sub_ctx.parse()
         self._nodes.append(sub_ctx_node)
         sub_ctx.destroy()
@@ -307,7 +329,7 @@ class ContextParser(object):
         if tok.type_ != TokenType.DirectiveIdentifier:
             raise UnexpectedTokenError(tok.type_, TokenType.DirectiveIdentifier, token=tok)
         dir_ident = tok.content.strip()
-        if dir_ident == 'save':
+        if dir_ident == 'save' or dir_ident == ':':
             return self._parse_save_directive()
         elif dir_ident == 'save each':
             return self._parse_save_each_directive()

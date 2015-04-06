@@ -1,0 +1,20 @@
+
+$ #siteTable .thing
+    save each                           : entries
+        $ .rank | text ;                    save: rank
+        $ .score.unvoted | text ;           save: score
+        $ a.title | text ;                  save: title
+        $ .domain a
+            | text ;                        save: domain.text
+            | [href] ;                      save: domain.reddit_section
+        $ .tagline
+            $ time
+                | [datetime] ;              save: time.exact
+                | text ;                    save: time.desc
+            $ .author
+                | [href] ;                  save: author.url
+                | text ;                    save: author.login
+            $ .subreddit
+                | [href] ;                  save: section.url
+                | text ;                    save: section.name
+        $ .comments | text ;                save: num_comments

@@ -6,9 +6,9 @@ from .parser import parse
 class TakeTemplate(object):
 
     @staticmethod
-    def from_file(path):
+    def from_file(path, **kwargs):
         with open(path, 'rb') as f:
-            return TakeTemplate(f.read().decode('utf-8'))
+            return TakeTemplate(f.read().decode('utf-8'), **kwargs)
 
     def __init__(self, src, **kwargs):
         self.node = parse(src)

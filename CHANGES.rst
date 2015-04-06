@@ -3,13 +3,34 @@ Take Changelog
 
 Here you can see the full list of changes between each take release.
 
+
+Unpublished
+-----------
+
+Release pending.
+
+- Inline sub-contexts added.
+- Added ``:`` as an alias for ``save:``.
+- ``TakeTemplate.from_file()`` static method accepts ``base_url`` parameter.
+- Tests slightly reorganized.
+- Additional tests added.
+
+
+Version 0.0.6
+-------------
+
+Released on April 6 2015.
+
+- Link to reddit sample fixed in README.
+
+
 Version 0.0.5
 -------------
 
 Released on April 6 2015.
 
-- `TakeTemplate.from_file()` static method added.
-- README.rst updated to include `TakeTemplate.from_file()`.
+- ``TakeTemplate.from_file()`` static method added.
+- README.rst updated to include ``TakeTemplate.from_file()``.
 - Moved the reddit sample out of the package code.
 - Minor misc cleanup.
 
