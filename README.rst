@@ -410,7 +410,7 @@ Will result in the following python ``dict``:
     }
 
 .. _PyQuery: https://pythonhosted.org/pyquery/index.html
-.. _reddit sample: https://github.com/tiffon/take/blob/master/take/sample.py
+.. _reddit sample: https://github.com/tiffon/take/blob/master/sample/reddit.take
 .. _PyQuery constructor: https://pythonhosted.org/pyquery/index.html#quickstart
 .. _bugs: https://github.com/gawel/pyquery/issues
 .. _lxml: http://lxml.de/
