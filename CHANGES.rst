@@ -12,8 +12,8 @@ Unreleased.
 - TODO: Refactor `ContextParser` to expose (no underscore) functions for directive factories.
 - TODO: End directives on ';'.
 - TODO: Allow directives that don't require parameters.
-- TODO: Create a `DirectiveStatementEnd` token type instead of passing the terminating token.
-- TODO: Allow directives to be used in non-CSS selector queries (rename to transformation sequences).
+- TODO: Create a ``DirectiveStatementEnd`` token type instead of passing around the terminating token.
+- TODO: Allow directives to be used in non-CSS selector queries (rename to chained transforms).
 - TODO: Add a "def" directive to define sub-routines.
 - TODO: Add a "merge" directive to merge fields from a context value into the context's result value.
 - TODO: Add a property accessor query.

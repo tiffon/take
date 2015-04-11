@@ -18,9 +18,11 @@ class Keywords(object):
     text_accessor = 'text'
     query_end = ';'
 
+
 class KeywordSets(object):
     query_start = Keywords.css_start + Keywords.accessor_start
     css_query_end = Keywords.accessor_start + Keywords.query_end
+
 
 TokenType = Enum('TokenType', ' '.join((
     'Context',

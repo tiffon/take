@@ -66,19 +66,7 @@ class ContextNode(object):
         self.__rv = rv if rv != None else context.rv
         # value in a sub-context is derived from the last_value in the parent context
         self.__value = value if value != None else context.last_value
-        if last_value != None:
-            self.last_value = last_value
-        elif value != None:
-            self.last_value = value
-        elif context:
-            if context.last_value != None:
-                self.last_value = context.last_value
-            elif context.value != None:
-                self.last_value = context.value
-            else:
-                self.last_value = None
-        else:
-            self.last_value = None
+        self.last_value = last_value if last_value != None else self.__value
         for node in self.__nodes:
             node.do(self)
 
@@ -201,8 +189,6 @@ class ContextParser(object):
         return tok
 
     def _parse_inline_context(self):
-        # sub_ctx = self.spawn_context_parser(sys.maxsize)
-        # sub_ctx = self.spawn_context_parser(self._depth + 0.1)
         sub_ctx = self.spawn_context_parser(self._depth, True)
         sub_ctx_node, tok = sub_ctx.parse()
         self._nodes.append(sub_ctx_node)

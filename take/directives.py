@@ -4,7 +4,7 @@ from .exceptions import UnexpectedTokenError, TakeSyntaxError
 from .scanner import TokenType
 
 
-def _parse_save_to_id(tok):
+def _split_save_id(tok):
     if tok.type_ != TokenType.DirectiveBodyItem:
         raise UnexpectedTokenError(tok.type_, TokenType.DirectiveBodyItem)
     save_to = tok.content.strip()
@@ -12,6 +12,7 @@ def _parse_save_to_id(tok):
         return tuple(save_to.split('.'))
     else:
         return (save_to,)
+
 
 def _save_to(dest, name_parts, value):
     """
@@ -37,7 +38,7 @@ class _SaveNode(namedtuple('_SaveNode', 'ident_parts')):
 
 def make_save(parser):
     tok = parser._next_tok()
-    save_id_parts = _parse_save_to_id(tok)
+    save_id_parts = _split_save_id(tok)
     return None, _SaveNode(save_id_parts)
 
 
@@ -54,7 +55,7 @@ class _SaveEachNode(namedtuple('_SaveEachNode', 'ident_parts sub_ctx_node')):
 
 def make_save_each(parser):
     tok = parser._next_tok()
-    save_id_parts = _parse_save_to_id(tok)
+    save_id_parts = _split_save_id(tok)
     # consume the context token and parse the sub-context SaveEachNode will manage
     tok = parser._next_tok()
     if tok.type_ != TokenType.Context:
@@ -78,7 +79,7 @@ class _NamespaceNode(namedtuple('_NamespaceNode', 'ident_parts sub_ctx_node')):
 
 def make_namespace(parser):
     tok = parser._next_tok()
-    save_id_parts = _parse_save_to_id(tok)
+    save_id_parts = _split_save_id(tok)
     # consume the context token and parse the sub-context SaveEachNode will manage
     tok = parser._next_tok()
     if tok.type_ != TokenType.Context:
