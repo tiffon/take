@@ -222,7 +222,7 @@ first on the line and they can be followed by non-CSS non-CSS Selector queries.
 Non-CSS selector queries can’t be followed by CSS selector queries.
 Seems easier to read this way, but it’s arbitrary and may change.
 
-CSS Selector queries
+CSS Selector Queries
 ^^^^^^^^^^^^^^^^^^^^
 
 CSS selector queries start with ``$`` and end either at the end of the
@@ -240,7 +240,7 @@ accept can be used. From what I understand, there are a few `bugs`_ in
 PyQuery (that may be in the underlying libraries `lxml`_ or
 `cssselect`_). Those will come up.
 
-Non-CSS Selector queries
+Non-CSS Selector Queries
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Non-CSS selector queries start with ``|`` and continue for the rest of

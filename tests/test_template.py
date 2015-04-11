@@ -121,7 +121,7 @@ class TestBaseFunctionality():
         """
         tt = TakeTemplate(TMPL)
         data = tt(HTML_FIXTURE)
-        assert data['value'] == DOC('a').eq(0).text()
+        assert data['value'] == 'first nav item'
 
 
     def test_absent_index(self):
@@ -141,9 +141,7 @@ class TestBaseFunctionality():
         """
         tt = TakeTemplate(TMPL)
         data = tt(HTML_FIXTURE)
-        anchors = DOC('a')
-        text = anchors.eq(len(anchors) - 1).text()
-        assert data == {'value': text}
+        assert data['value'] == 'second content link'
 
 
     def test_absent_neg_index(self):
@@ -313,28 +311,20 @@ class TestInlineSubCtx():
 
     def test_css_sub_ctx_save(self):
         TMPL = """
-            $ h1 ; save: value
-        """
-        tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC('h1').html()
-
-    def test_accessor_sub_ctx_save(self):
-        TMPL = """
-            $ h1
-                | 0 ; save: value
-        """
-        tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC('h1').html()
-
-    def test_css_accessor_sub_ctx_save(self):
-        TMPL = """
             $ h1 | 0 text ; save: value
         """
         tt = TakeTemplate(TMPL)
         data = tt(HTML_FIXTURE)
-        assert data['value'] == DOC('h1').text()
+        assert data['value'] == 'Text in h1'
+
+    def test_accessor_sub_ctx_save(self):
+        TMPL = """
+            $ h1
+                | 0 text ; save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        assert data['value'] == 'Text in h1'
 
     def test_css_accessor_sub_ctx_save_alias(self):
         TMPL = """
@@ -342,7 +332,104 @@ class TestInlineSubCtx():
         """
         tt = TakeTemplate(TMPL)
         data = tt(HTML_FIXTURE)
-        assert data['value'] == DOC('h1').text()
+        assert data['value'] == 'Text in h1'
+
+
+@pytest.mark.namespace_ctx
+class TestNamespaceCtx():
+
+    def test_save_text(self):
+        TMPL = """
+            namespace               : parent
+                $ h1 | 0 text ;         : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        value = DOC('h1').text()
+        assert data['parent']['value'] == 'Text in h1'
+
+    def test_alias_save_text(self):
+        TMPL = """
+            +                       : parent
+                $ h1 | 0 text ;         : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        value = DOC('h1').text()
+        assert data['parent']['value'] == 'Text in h1'
+
+    def test_namespace_inception(self):
+        TMPL = """
+            +                       : p0
+                +                       : p1
+                    +                       : p2
+                        +                       : p3
+                            +                       : p4
+                                $ h1 | 0 text ;         : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        value = DOC('h1').text()
+        assert data['p0']['p1']['p2']['p3']['p4']['value'] == 'Text in h1'
+
+    def test_namespace_exits(self):
+        TMPL = """
+            +                               : p0a
+                namespace                       : p1a
+                    $ li | 0 text ;                 : first_li
+                +                               : p1b
+                    $ li | 1 text ;                 : second_li
+            namespace                       : p0b
+                $ li | 2 text ;                 : third_li
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        assert data['p0a']['p1a']['first_li'] == 'first nav item'
+        assert data['p0a']['p1b']['second_li'] == 'second nav item'
+        assert data['p0b']['third_li'] == 'first content link'
+
+    def test_inline_namespace(self):
+        TMPL = """
+            $ li ; +                            : parent
+                | 0 text ;                          : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        assert data['parent']['value'] == 'first nav item'
+
+    def test_inline_namespace_exits_and_sub_ctx(self):
+        TMPL = """
+            $ li ; +                        : p0a
+                | 0 ; +                         : p1a
+                    | text ;                        : first_li
+                | 1 text ;                      : second_li
+            +                               : p0b
+                $ h1 | 0 text ; +               : p1b
+                                                    : h1
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        assert data['p0a']['p1a']['first_li'] == 'first nav item'
+        assert data['p0a']['second_li'] == 'second nav item'
+        assert data['p0b']['p1b']['h1'] == 'Text in h1'
+
+    def test_inline_namespace_minimal_indentation(self):
+        TMPL = """
+            $ li ; +                        : p0a
+             | 0 ; +                            : p1a
+              | text ;                              : first_li
+             | 1 text ;                         : second_li
+             | 1 text ;                         : second_li_again
+            +                               : p0b
+             $ h1 | 0 text ; +                  : p1b
+                                                    : h1
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(HTML_FIXTURE)
+        assert data['p0a']['p1a']['first_li'] == 'first nav item'
+        assert data['p0a']['second_li'] == 'second nav item'
+        assert data['p0a']['second_li_again'] == 'second nav item'
+        assert data['p0b']['p1b']['h1'] == 'Text in h1'
 
 
 @pytest.mark.invalid_templates

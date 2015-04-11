@@ -2,6 +2,8 @@ from collections import namedtuple
 from enum import Enum
 import re
 
+from .exceptions import ScanError
+
 
 _COMMENT_TEST_RX = re.compile(r'^\s*#.*$')
 _CTX_WS_RX = re.compile(r'\S')
@@ -47,31 +49,6 @@ class Token(namedtuple('Token', 'type_ content line line_num start end')):
                 '   start, end: {}, {}\n'
                 '         line: "{}"\n'
                 '}}').format(self.type_, self.content, self.line_num, self.start, self.end, self.line)
-
-
-class ScanError(Exception):
-
-    @staticmethod
-    def make(scanner, msg, extra=None):
-        return ScanError(msg, scanner.line, scanner.line_num, scanner.pos, extra)
-
-    def __init__(self, message, line, line_num, pos, extra=None):
-        self.message = message
-        self.line = line
-        self.line_num = line_num
-        self.pos = pos
-        self.extra = extra
-
-    def __str__(self):
-        return ('ScanError: {{\n'
-                '      message: {!r}\n'
-                '         line: "{}"\n'
-                '                {}^\n'
-                '     line num: {}\n'
-                '          pos: {}\n'
-                '        extra: {!r}\n'
-                '}}').format(self.message, self.line, ' ' * self.pos,
-                             self.line_num, self.pos, self.extra)
 
 
 class Scanner(object):
@@ -207,23 +184,19 @@ class Scanner(object):
         return self._scan_statement, tok
 
     def _scan_statement(self):
-        if self._c.isalpha() or self._c == ':':
-            tok = self._make_marker_token(TokenType.DirectiveStatement)
-            return self._scan_directive, tok
-        elif self._c in KeywordSets.query_start:
+        if self._c in KeywordSets.query_start:
             tok = self._make_marker_token(TokenType.QueryStatement)
             return self._scan_query_statement, tok
         else:
-            raise ScanError.make(self, 'Unknown statement type, starts with %r' % self._c)
+            tok = self._make_marker_token(TokenType.DirectiveStatement)
+            return self._scan_directive, tok
 
     def _scan_directive(self):
-        # a directive without any text is valid, considered an alias to "save"
+        # a directive without any text is valid, considered an alias to "save",
+        # use ":" as the directive ID
         if self._accept(':'):
             tok = self._make_token(TokenType.DirectiveIdentifier)
             return self._scan_directive_body, tok
-        ok = self._accept(alpha=True)
-        if not ok:
-            raise ScanError.make(self, 'Invalid directive, must start with an alpha, not %s' % self._c)
         if self._accept_until(':') < 1:
             raise ScanError.make(self, 'Invalid directive, 0 length')
         tok = self._make_token(TokenType.DirectiveIdentifier)
@@ -303,7 +276,7 @@ class Scanner(object):
             return self._scan_accessor, tok
 
     def _scan_inline_sub_ctx(self):
-        self._accept_run(';')
+        self._accept_run(Keywords.query_end)
         tok = self._make_token(TokenType.InlineSubContext)
         self._accept_run(' ')
         self._ignore()

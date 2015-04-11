@@ -4,51 +4,13 @@ import sys
 from pyquery import PyQuery
 
 from ._compat import string_types, StringIO
+from .directives import DIRECTIVES
+from .exceptions import AlreadyParsedError, UnexpectedEOFError, \
+     UnexpectedTokenError, InvalidDirectiveError, TakeSyntaxError
 from .scanner import Scanner, TokenType
 
 
-class AlreadyParsedError(Exception):
-    pass
-
-class UnexpectedEOFError(Exception):
-    pass
-
-class UnexpectedTokenError(Exception):
-    def __init__(self, found, expected, msg=None, token=None):
-        self.found = found
-        self.expected = expected
-        self.msg = msg
-        self.token = token
-
-    def __str__(self):
-        return ('UnexpectedTokenError {{\n'
-                '       found: {!r}\n'
-                '    expected: {!r}\n'
-                '         msg: {!r}\n'
-                '       token: {}\n'
-                '}}').format(self.found, self.expected, self.msg, self.token)
-
-class InvalidDirectiveError(Exception):
-    def __init__(self, ident, msg=None):
-        self.ident = ident
-        self.msg = msg
-
-    def __str__(self):
-        return ('InvalidDirectiveError {{\n'
-                '      ident: {!r}\n'
-                '    message: {!r}\n'
-                '}}').format(self.ident, self.message)
-
-class TakeSyntaxError(Exception):
-    def __init__(self, msg, extra=None):
-        self.msg = msg
-        self.extra = extra
-
-    def __str__(self):
-        return ('TakeSyntaxError {{\n'
-                '      message: {!r}\n'
-                '        extra: {!r}\n'
-                '}}').format(self.message, self.extra)
+_DIRECTIVE_IDS = set(DIRECTIVES.keys())
 
 
 def ensure_pq(elm):
@@ -57,8 +19,10 @@ def ensure_pq(elm):
     else:
         return PyQuery(elm)
 
+
 def make_css_query(selector):
     return lambda elm: ensure_pq(elm)(selector)
+
 
 def make_index_query(index_str):
     index = int(index_str)
@@ -71,32 +35,13 @@ def make_index_query(index_str):
         return elm.eq(i)
     return index_query
 
+
 def make_text_query():
     return lambda elm: ensure_pq(elm).text()
 
+
 def make_attr_query(attr):
     return lambda elm: ensure_pq(elm).attr(attr)
-
-def parse_save_to_id(tok):
-    if tok.type_ != TokenType.DirectiveBodyItem:
-        raise UnexpectedTokenError(tok.type_, TokenType.DirectiveBodyItem)
-    save_to = tok.content.strip()
-    if '.' in save_to:
-        return tuple(save_to.split('.'))
-    else:
-        return (save_to,)
-
-def save_to(dest, name_parts, value):
-    """
-    Util to save some name sequence to a dict. For instance, `("location","query")` would save
-    to dest["location"]["query"].
-    """
-    if len(name_parts) > 1:
-        for part in name_parts[:-1]:
-            if part not in dest:
-                dest[part] = {}
-            dest = dest[part]
-    dest[name_parts[-1]] = value
 
 
 class ContextNode(object):
@@ -150,27 +95,11 @@ class QueryNode(namedtuple('QueryNode', 'queries')):
         context.last_value = val
 
 
-class SaveNode(namedtuple('SaveNode', 'ident_parts')):
-    __slots__ = ()
-    def do(self, context):
-        save_to(context.rv, self.ident_parts, context.value)
-
-
-class SaveEachNode(namedtuple('SaveEachNode', 'ident_parts sub_ctx_node')):
-    __slots__ = ()
-    def do(self, context):
-        results = []
-        save_to(context.rv, self.ident_parts, results)
-        for item in context.value:
-            rv = {}
-            results.append(rv)
-            self.sub_ctx_node.do(None, rv, item, item)
-
-
 class ContextParser(object):
 
-    def __init__(self, depth, tok_gen):
+    def __init__(self, depth, tok_gen, from_inline=False):
         self._depth = depth
+        self._from_inline = from_inline
         self._tok_generator = tok_gen
         self._nodes = None
         self._tok = None
@@ -190,6 +119,12 @@ class ContextParser(object):
         self._nodes = []
         tok = self._parse()
         return ContextNode(self._depth, self._nodes), tok
+
+
+    def spawn_context_parser(self, depth=None, from_inline=False):
+        if depth == None:
+            depth = self._tok.end
+        return ContextParser(depth, self._tok_generator, from_inline)
 
 
     def _next_tok(self, eof_errors=True):
@@ -252,17 +187,23 @@ class ContextParser(object):
                 # would be in another sub-context (prob should not allow)
             if tok.end < self._depth:
                 return tok
-            # context token same depth as this context, so continue parsing
+            # context token is the same depth as the current context parser
+            # exit if the current context parse was created from an inline context
+            # (they only persist when the context token is deeper)
+            if self._from_inline:
+                return tok
 
     def _parse_context(self):
-        sub_ctx = ContextParser(self._tok.end, self._tok_generator)
+        sub_ctx = self.spawn_context_parser()
         sub_ctx_node, tok = sub_ctx.parse()
         self._nodes.append(sub_ctx_node)
         sub_ctx.destroy()
         return tok
 
     def _parse_inline_context(self):
-        sub_ctx = ContextParser(sys.maxsize, self._tok_generator)
+        # sub_ctx = self.spawn_context_parser(sys.maxsize)
+        # sub_ctx = self.spawn_context_parser(self._depth + 0.1)
+        sub_ctx = self.spawn_context_parser(self._depth, True)
         sub_ctx_node, tok = sub_ctx.parse()
         self._nodes.append(sub_ctx_node)
         sub_ctx.destroy()
@@ -329,36 +270,12 @@ class ContextParser(object):
         if tok.type_ != TokenType.DirectiveIdentifier:
             raise UnexpectedTokenError(tok.type_, TokenType.DirectiveIdentifier, token=tok)
         dir_ident = tok.content.strip()
-        if dir_ident == 'save' or dir_ident == ':':
-            return self._parse_save_directive()
-        elif dir_ident == 'save each':
-            return self._parse_save_each_directive()
-        else:
-            raise InvalidDirectiveError(dir_ident, 'Unknown directive, valid directives: %r' %
-                                                   ['save', 'save each'])
-
-    def _parse_save_directive(self):
-        tok = self._next_tok()
-        save_id_parts = parse_save_to_id(tok)
-        node = SaveNode(save_id_parts)
+        if dir_ident not in DIRECTIVES:
+            raise InvalidDirectiveError(dir_ident, 'Unknown directive, valid directives: %s' %
+                                                   _DIRECTIVE_IDS)
+        end_tok, node = DIRECTIVES[dir_ident](self)
         self._nodes.append(node)
-
-    def _parse_save_each_directive(self):
-        tok = self._next_tok()
-        save_id_parts = parse_save_to_id(tok)
-        # consume the context token and parse the sub-context SaveEachNode will manage
-        tok = self._next_tok()
-        if tok.type_ != TokenType.Context:
-            raise UnexpectedTokenError(tok.type_, TokenType.Context, token=tok)
-        if tok.end <= self._depth:
-            raise TakeSyntaxError('Invalid depth, expecting to start a "save each" context.',
-                                  extra=tok)
-        sub_ctx = ContextParser(tok.end, self._tok_generator)
-        sub_ctx_node, tok = sub_ctx.parse()
-        sub_ctx.destroy()
-        node = SaveEachNode(save_id_parts, sub_ctx_node)
-        self._nodes.append(node)
-        return tok
+        return end_tok
 
 
 def parse(src):
