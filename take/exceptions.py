@@ -43,7 +43,7 @@ class UnexpectedTokenError(Exception):
         return ('UnexpectedTokenError {{\n'
                 '       found: {!r}\n'
                 '    expected: {!r}\n'
-                '         msg: {!r}\n'
+                '         message: {!r}\n'
                 '       token: {}\n'
                 '}}').format(self.found, self.expected, self.message, self.token)
 
@@ -61,8 +61,8 @@ class InvalidDirectiveError(Exception):
 
 
 class TakeSyntaxError(Exception):
-    def __init__(self, msg, extra=None):
-        self.msg = msg
+    def __init__(self, message, extra=None):
+        self.message = message
         self.extra = extra
 
     def __str__(self):
