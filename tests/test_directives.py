@@ -148,6 +148,19 @@ class TestDefDirective():
         assert data['def_result']['def_saved'] == 'Text in h1'
 
 
+    def test_def_space_in_name(self):
+        TMPL = """
+            def: my simple defn
+                $ h1 | 0 text
+                    save: def_saved
+
+            my simple defn ; save: def_result
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['def_result']['def_saved'] == 'Text in h1'
+
+
     def test_def_save_each(self):
         expect = {
             'first': {

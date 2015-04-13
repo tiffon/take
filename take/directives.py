@@ -102,10 +102,15 @@ class _DefSubroutine(namedtuple('_DefSubroutine', 'sub_ctx_node')):
 
 
 def make_def_subroutine(parser):
+    name_parts = []
     tok = parser.next_tok()
-    def_name = tok.content.strip()
-    tok = parser.next_tok()
-    # expecting only have one parameter
+    # can have more than one name to merge
+    while tok.type_ == TokenType.DirectiveBodyItem:
+        name_parts.append(tok.content.strip())
+        tok = parser.next_tok()
+    if not name_parts:
+        raise TakeSyntaxError('The def directive requires a parameter.', tok)
+    def_name = ' '.join(name_parts)
     if tok.type_ != TokenType.DirectiveStatementEnd:
         raise UnexpectedTokenError(tok.type_, TokenType.DirectiveStatementEnd, token=tok)
     # consume the context token which should be a sub-context
