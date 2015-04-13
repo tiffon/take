@@ -1,16 +1,18 @@
-from collections import namedtuple
+from collections import namedtuple, MutableMapping
+from itertools import chain
 import sys
 
 from pyquery import PyQuery
 
 from ._compat import string_types, StringIO
-from .directives import DIRECTIVES
+from .directives import BUILTIN_DIRECTIVES
 from .exceptions import AlreadyParsedError, UnexpectedEOFError, \
      UnexpectedTokenError, InvalidDirectiveError, TakeSyntaxError
 from .scanner import Scanner, TokenType
+from .utils import split_name, get_via_name_list
 
 
-_DIRECTIVE_IDS = set(DIRECTIVES.keys())
+_BUILTIN_DIRECTIVES_IDS = set(BUILTIN_DIRECTIVES.keys())
 
 
 def ensure_pq(elm):
@@ -36,12 +38,23 @@ def make_index_query(index_str):
     return index_query
 
 
-def make_text_query():
-    return lambda elm: ensure_pq(elm).text()
+def text_query(elm):
+    return ensure_pq(elm).text()
+
+
+def own_text_query(elm):
+    return ''.join(item
+                   for item in ensure_pq(elm).contents()
+                   if isinstance(item, string_types))
 
 
 def make_attr_query(attr):
     return lambda elm: ensure_pq(elm).attr(attr)
+
+
+def make_field_query(name):
+    name_list = split_name(name)
+    return lambda source: get_via_name_list(source, name_list)
 
 
 class ContextNode(object):
@@ -83,19 +96,73 @@ class QueryNode(namedtuple('QueryNode', 'queries')):
         context.last_value = val
 
 
+class ChainedMapping(MutableMapping):
+    """
+    A dictionary that looks for a specific key and if it's not present looks for
+    it on it's parent
+    """
+
+    def __init__(self, parent=None, *args, **kwargs):
+        self.parent = parent or {}
+        self.store = {}
+        if args:
+            self.update(*args)
+        if kwargs:
+            self.update(**kwargs)
+
+    def __getitem__(self, key):
+        if key in self.store:
+            return self.store[key]
+        return self.parent[key]
+
+    def __setitem__(self, key, value):
+        self.store[key] = value
+
+    def __delitem__(self, key):
+        del self.store[key]
+
+    def __iter__(self):
+        return chain(iter(self.store), iter(self.parent))
+
+    def __len__(self):
+        return len(self.store) + len(self.parent)
+
+    def make_child(self, *args, **kwargs):
+        return ChainedMapping(self, *args, **kwargs)
+
+    def destroy(self, *args, **kwargs):
+        self.parent = None
+        self.store = None
+
+
 class ContextParser(object):
 
-    def __init__(self, depth, tok_gen, from_inline=False):
+    def __init__(self, depth, tok_gen, defs=None, from_inline=False):
         self._depth = depth
-        self._from_inline = from_inline
         self._tok_generator = tok_gen
+        self._defs = defs or ChainedMapping()
+        self._from_inline = from_inline
         self._nodes = None
         self._tok = None
         self._is_done = False
 
+    @property
+    def depth(self):
+        return self._depth
+
+    @property
+    def defs(self):
+        return self._defs
+
+    @property
+    def tok(self):
+        return self._tok
+
     def destroy(self):
         self._depth = None
         self._tok_generator = None
+        self._defs.destroy()
+        self._defs = None
         self._nodes = None
         self._tok = None
         self._is_done = None
@@ -112,10 +179,11 @@ class ContextParser(object):
     def spawn_context_parser(self, depth=None, from_inline=False):
         if depth == None:
             depth = self._tok.end
-        return ContextParser(depth, self._tok_generator, from_inline)
+        defs = self._defs.make_child()
+        return ContextParser(depth, self._tok_generator, defs, from_inline)
 
 
-    def _next_tok(self, eof_errors=True):
+    def next_tok(self, eof_errors=True):
         try:
             self._tok = next(self._tok_generator)
             return self._tok
@@ -127,7 +195,7 @@ class ContextParser(object):
 
     def _parse(self):
         while True:
-            tok = self._next_tok()
+            tok = self.next_tok()
             if tok.type_ == TokenType.QueryStatement:
                 self._parse_query()
                 tok = None
@@ -139,7 +207,7 @@ class ContextParser(object):
                                           (TokenType.QueryStatement, TokenType.DirectiveStatement),
                                           token=tok)
             if not tok:
-                tok = self._next_tok(eof_errors=False)
+                tok = self.next_tok(eof_errors=False)
             if self._is_done:
                 # returning None means EOF ended this context, not a context exit
                 return
@@ -196,7 +264,7 @@ class ContextParser(object):
         return tok
 
     def _parse_query(self):
-        self._next_tok()
+        self.next_tok()
         if self._tok.type_ == TokenType.CSSSelector:
             queries = self._parse_css_selector()
         elif self._tok.type_ == TokenType.AccessorSequence:
@@ -211,7 +279,7 @@ class ContextParser(object):
         selector = self._tok.content.strip()
         # expects a valid css selector
         query = make_css_query(selector)
-        self._next_tok()
+        self.next_tok()
         if self._tok.type_ == TokenType.QueryStatementEnd:
             return (query,)
         elif self._tok.type_ == TokenType.AccessorSequence:
@@ -222,46 +290,75 @@ class ContextParser(object):
 
     def _parse_accessor_seq(self):
         queries = ()
-        tok = self._next_tok()
+        tok = self.next_tok()
         # index accessor has to be first
         if tok.type_ == TokenType.IndexAccessor:
             index_str = tok.content
             queries = (make_index_query(index_str),)
-            tok = self._next_tok()
+            tok = self.next_tok()
             # index accessor can be the only accessor
             if tok.type_ == TokenType.QueryStatementEnd:
                 return queries
+        # text accessor
         if tok.type_ == TokenType.TextAccessor:
-            queries += (make_text_query(),)
+            queries += (text_query,)
+        # own text accessor
+        elif tok.type_ == TokenType.OwnTextAccessor:
+            queries += (own_text_query,)
+        # attr accessor
         elif tok.type_ == TokenType.AttrAccessor:
             # strip spaces and remove the brackets
             # ex: [src]
             attr = tok.content.strip()[1:-1]
             queries += (make_attr_query(attr),)
+        # field accessor
+        elif tok.type_ == TokenType.FieldAccessor:
+            # strip spaces and remove the dot
+            # ex: '".field_name"'
+            field = tok.content.strip()[1:]
+            queries += (make_field_query(field),)
+        # invalid
         else:
             # if it got here, something is wrong, should either have exited after the index
             # accessor (if there was one) or there should have been a text or attr accessor
-            expected = (TokenType.TextAccessor, TokenType.AttrAccessor)
+            expected = (
+                TokenType.TextAccessor,
+                TokenType.OwnTextAccessor,
+                TokenType.AttrAccessor,
+                TokenType.FieldAccessor,
+            )
             if not queries:
                 expected += (TokenType.IndexAccessor,)
             raise UnexpectedTokenError(tok.type_, expected, token=tok)
         # can only have one of text accessor or attr accessor, so do not need to loop
-        tok = self._next_tok()
+        tok = self.next_tok()
         if tok.type_ != TokenType.QueryStatementEnd:
             raise UnexpectedTokenError(tok.type_, TokenType.QueryStatementEnd, token=tok)
         return queries
 
     def _parse_directive(self):
-        tok = self._next_tok()
+        tok = self.next_tok()
         if tok.type_ != TokenType.DirectiveIdentifier:
             raise UnexpectedTokenError(tok.type_, TokenType.DirectiveIdentifier, token=tok)
-        dir_ident = tok.content.strip()
-        if dir_ident not in DIRECTIVES:
-            raise InvalidDirectiveError(dir_ident, 'Unknown directive, valid directives: %s' %
-                                                   _DIRECTIVE_IDS)
-        end_tok, node = DIRECTIVES[dir_ident](self)
-        self._nodes.append(node)
-        return end_tok
+        name = tok.content.strip()
+        if name in BUILTIN_DIRECTIVES:
+            end_tok, node = BUILTIN_DIRECTIVES[name](self)
+            if node != None:
+                # node is `None` for `def:` subroutines
+                self._nodes.append(node)
+            return end_tok
+        def_node = self._defs.get(name)
+        if def_node:
+            self._parse_call_user_subroutine(def_node)
+        else:
+            raise InvalidDirectiveError(name, 'Unknown directive: %s' % name)
+
+    def _parse_call_user_subroutine(self, def_node):
+        # calling a subroutine
+        self._nodes.append(def_node)
+        tok = self.next_tok()
+        if tok.type_ != TokenType.DirectiveStatementEnd:
+            raise UnexpectedTokenError(tok.type_, TokenType.DirectiveStatementEnd, token=tok)
 
 
 def parse(src):

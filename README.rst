@@ -39,16 +39,15 @@ And the following HTML:
     <div>
         <h1>Le Title 1</h1>
         <p>Some body here</p>
-        <h2 class="second title">The second title</h2>
-        <p>Another body here</p>
+        <p>The second body here</p>
         <ul id="a">
             <li title="a less than awesome title">A first li</li>
-            <li>A second li</li>
+            <li>Second li in list #a</li>
             <li>A third li</li>
         </ul>
         <ul id="b">
             <li title="some awesome title">B first li</li>
-            <li>B second li</li>
+            <li>Second li in list #b</li>
             <li>B third li</li>
         </ul>
     </div>
@@ -59,15 +58,15 @@ The following data will be extracted (presented in JSON format):
 
     {
         "h1_title": "Le Title 1",
-        "p_text": "Another body here",
+        "p_text": "The second body here",
         "uls": [
             {
                 "title": "a less than awesome title",
-                "second_li": "A second li"
+                "second_li": "Second li in list #a"
             },
             {
                 "title": "some awesome title",
-                "second_li": "B second li"
+                "second_li": "Second li in list #b"
             }
         ]
     }
@@ -85,6 +84,8 @@ The template can also be written in the following, more concise, syntax:
                 | 0 [title] ;           : title
                 | 1 text ;              : second_li
     $ p | 1 text ;                  : p_text
+
+The example above is formatted with extra whitespace to make the structure of the resulting data more apparent.
 
 For a more complex example, see the `reddit sample <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_ (`inline version <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_).
 

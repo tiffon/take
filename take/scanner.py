@@ -8,6 +8,7 @@ from .exceptions import ScanError
 _COMMENT_TEST_RX = re.compile(r'^\s*#.*$')
 _CTX_WS_RX = re.compile(r'\S')
 _INT_RX = re.compile(r'-?\d+')
+_WS_RX = re.compile(r'\s+')
 
 
 class Keywords(object):
@@ -16,12 +17,18 @@ class Keywords(object):
     attr_accessor_start = '['
     attr_accessor_end = ']'
     text_accessor = 'text'
-    query_end = ';'
+    own_text_accessor = 'own_text'
+    field_accessor_start = '.'
+    statement_end = ';'
+    params_start = ':'
+    continuation = ','
 
 
 class KeywordSets(object):
     query_start = Keywords.css_start + Keywords.accessor_start
-    css_query_end = Keywords.accessor_start + Keywords.query_end
+    css_query_end = Keywords.accessor_start + Keywords.statement_end
+    directive_id_end = Keywords.params_start + Keywords.statement_end
+    param_end = ' ' + Keywords.statement_end + Keywords.continuation
 
 
 TokenType = Enum('TokenType', ' '.join((
@@ -32,8 +39,11 @@ TokenType = Enum('TokenType', ' '.join((
     'AccessorSequence',
     'IndexAccessor',
     'TextAccessor',
+    'OwnTextAccessor',
     'AttrAccessor',
+    'FieldAccessor',
     'DirectiveStatement',
+    'DirectiveStatementEnd',
     'DirectiveIdentifier',
     'DirectiveBodyItem',
     'InlineSubContext'
@@ -57,6 +67,7 @@ class Scanner(object):
 
     def __init__(self, fobj):
         self.fobj = fobj
+        self.line_gen = None
         self.line = None
         self.line_num = 0
         self.start = 0
@@ -79,17 +90,30 @@ class Scanner(object):
         return self.line[self.start:self.pos]
 
     def scan(self):
-        for line in self.fobj:
-            self.line_num += 1
-            self.start = self.pos = 0
-            self.line = line.rstrip()
-            if not self.line or _COMMENT_TEST_RX.match(self.line):
+        while bool(self._next_line()):
+            if _COMMENT_TEST_RX.match(self.line):
                 continue
             scan_fn = self._scan_context
             while scan_fn:
                 scan_fn, tok = scan_fn()
                 if tok:
                     yield tok
+
+    def _next_line(self):
+        if not self.line_gen:
+            self.line_gen = iter(self.fobj)
+        while True:
+            try:
+                self.line = next(self.line_gen).rstrip()
+            except StopIteration:
+                self.line_gen = None
+                self.line = None
+                self.start = self.pos -1
+                return None
+            self.start = self.pos = 0
+            self.line_num += 1
+            if self.line:
+                return self.line
 
     def _ignore(self):
         self.start = self.pos
@@ -113,7 +137,6 @@ class Scanner(object):
                     self.start,
                     self.start)
         return tok
-
 
     def _accept(self, valid=None, alpha=False, num=False, alphanum=False):
         if self._eol:
@@ -188,7 +211,7 @@ class Scanner(object):
     def _scan_statement(self):
         if self._c in KeywordSets.query_start:
             tok = self._make_marker_token(TokenType.QueryStatement)
-            return self._scan_query_statement, tok
+            return self._scan_query, tok
         else:
             tok = self._make_marker_token(TokenType.DirectiveStatement)
             return self._scan_directive, tok
@@ -196,38 +219,64 @@ class Scanner(object):
     def _scan_directive(self):
         # a directive without any text is valid, considered an alias to "save",
         # use ":" as the directive ID
-        if self._accept(':'):
+        if self._accept(Keywords.params_start):
             tok = self._make_token(TokenType.DirectiveIdentifier)
             return self._scan_directive_body, tok
-        if self._accept_until(':') < 1:
+        elif self._accept_until(KeywordSets.directive_id_end) < 1:
             raise ScanError.make(self, 'Invalid directive, 0 length')
         tok = self._make_token(TokenType.DirectiveIdentifier)
-        if not self._accept(':'):
-            raise ScanError.make(self, 'Invalid directive identifier terminator: "%s", ":" required.' % self._tok_content)
-        self._ignore()
-        return self._scan_directive_body, tok
+        if self._eol or self._c == Keywords.statement_end:
+            return self._end_directive, tok
+        elif self._accept(Keywords.params_start):
+            self._ignore()
+            return self._scan_directive_body, tok
+        else:
+            raise ScanError.make(self, 'Invalid directive identifier terminator: '
+                                       '%r. Either %r, %r or end of the line required.' %
+                                       (self._to_eol_content,
+                                        Keywords.params_start,
+                                        Keywords.statement_end))
 
     def _scan_directive_body(self):
         self._accept_run(' ')
         self._ignore()
-        if self._accept_until(' ') < 1:
+        if self._eol or self._c == Keywords.statement_end:
+            return self._end_directive()
+
+        if self._c == Keywords.continuation:
+            self._accept(Keywords.continuation)
+            self._accept_run(' ')
+            self._ignore()
+            if self._eol and not self._next_line():
+                raise ScanError.make(self, 'Unexpected EOF, directive parameter expected.')
+            self._consume_re(_WS_RX)
+        if self._accept_until(KeywordSets.param_end) < 1:
             raise ScanError.make(self, 'Invalid directive body item, 0 length')
         tok = self._make_token(TokenType.DirectiveBodyItem)
-        return None if self._eol else self._scan_directive_body, tok
+        return self._scan_directive_body, tok
 
-    def _scan_query_statement(self):
+    def _end_directive(self):
+        tok = self._make_marker_token(TokenType.DirectiveStatementEnd)
+        if self._eol:
+            return None, tok
+        elif self._c == Keywords.statement_end:
+            return self._scan_inline_sub_ctx, tok
+        else:
+            raise ScanError.make(self, 'Invalid end of directive statement: %r' % self._to_eol_content)
+
+    def _scan_query(self):
         if self._c == Keywords.css_start:
             return self._scan_css_selector()
         elif self._c == Keywords.accessor_start:
             return self._scan_accessor_sequence()
         else:
-            raise ScanError.make(self, 'Invalid query statement: %s' % self._to_eol_content)
+            raise ScanError.make(self, 'Invalid query statement: %r' % self._to_eol_content)
 
-    def _end_query_statement(self):
+    def _end_query(self):
         tok = self._make_marker_token(TokenType.QueryStatementEnd)
         if self._eol:
             return None, tok
-        elif self._c == Keywords.query_end:
+        elif self._c == Keywords.statement_end:
             return self._scan_inline_sub_ctx, tok
         else:
             raise ScanError.make(self, 'Invalid end of query statement: %r' % self._to_eol_content)
@@ -237,14 +286,14 @@ class Scanner(object):
         self._accept_run(' ')
         self._ignore()
         if self._accept_until(KeywordSets.css_query_end) < 1:
-            raise ScanError.make(self, 'Invalid CSS Selector: %s' % self._to_eol_content)
+            raise ScanError.make(self, 'Invalid CSS Selector: %r' % self._to_eol_content)
         tok = self._make_token(TokenType.CSSSelector)
-        if self._eol or self._c == Keywords.query_end:
-            return self._end_query_statement, tok
+        if self._eol or self._c == Keywords.statement_end:
+            return self._end_query, tok
         elif self._c == Keywords.accessor_start:
             return self._scan_accessor_sequence, tok
         else:
-            raise ScanError.make(self, 'EOL or accessor sequence expected, instead found %s' % self._to_eol_content)
+            raise ScanError.make(self, 'EOL or accessor sequence expected, instead found %r' % self._to_eol_content)
 
     def _scan_accessor_sequence(self):
         # create the marker token at the start of the sequence
@@ -257,28 +306,39 @@ class Scanner(object):
     def _scan_accessor(self):
         self._accept_run(' ')
         self._ignore()
-        if self._eol or self._c == Keywords.query_end:
-            return self._end_query_statement()
+        if self._eol or self._c == Keywords.statement_end:
+            return self._end_query()
+        # attribute accessor
         elif self._c == Keywords.attr_accessor_start:
-            # attribute accessor
             self._accept_until(Keywords.attr_accessor_end)
             if not self._accept(Keywords.attr_accessor_end):
-                raise ScanError.make(self, 'Invalid Attr Accessor: %s' % self._to_eol_content)
+                raise ScanError.make(self, 'Invalid Attr Accessor: %r' % self._to_eol_content)
             tok = self._make_token(TokenType.AttrAccessor)
             return self._scan_accessor, tok
+        # text accessor
         elif self._consume(Keywords.text_accessor):
-            # text accessor
             tok = self._make_token(TokenType.TextAccessor)
+            return self._scan_accessor, tok
+        # own text accessor
+        elif self._consume(Keywords.own_text_accessor):
+            tok = self._make_token(TokenType.OwnTextAccessor)
+            return self._scan_accessor, tok
+        # field accessor, ex: `| .field_name`
+        elif self._consume(Keywords.field_accessor_start):
+            if self._accept_until(' ') < 1:
+                raise ScanError.make(self, 'Invalid field accessor, exepected field '
+                                           'name instead found: %r' % self._to_eol_content)
+            tok = self._make_token(TokenType.FieldAccessor)
             return self._scan_accessor, tok
         else:
             # index accesor, test for a valid number, ie -?\d+
             if not self._consume_re(_INT_RX):
-                raise ScanError.make(self, 'Expected an accessor, instead found: %s' % self._to_eol_content)
+                raise ScanError.make(self, 'Expected an accessor, instead found: %r' % self._to_eol_content)
             tok = self._make_token(TokenType.IndexAccessor)
             return self._scan_accessor, tok
 
     def _scan_inline_sub_ctx(self):
-        self._accept_run(Keywords.query_end)
+        self._accept_run(Keywords.statement_end)
         tok = self._make_token(TokenType.InlineSubContext)
         self._accept_run(' ')
         self._ignore()
