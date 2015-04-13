@@ -238,7 +238,7 @@ class TestDefDirective():
 
 @pytest.mark.directives
 @pytest.mark.merge_directive
-class TestDefDirective():
+class TestMergeDirective():
 
     def test_basic_merge(self):
         TMPL = """
