@@ -88,7 +88,24 @@ The template can also be written in the following, more concise, syntax:
 The example above is formatted with extra whitespace to make the structure
 of the resulting data more apparent.
 
-For a more complex example, see the `reddit sample <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_ (`inline version <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_).
+More Examples
+^^^^^^^^^^^^^
+
+For more complex examples:
+
+-  Scraping the `reddit home page <http://www.reddit.com/>`_
+
+   -  `Inline version <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_
+
+   -  `Verbose version <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_
+
+-  Scraping the latest `web-scraping questions<http://stackoverflow.com/questions/tagged/web-scraping?sort=newest&pageSize=10>`_ on Stack Overflow:
+
+   -  `Overview <https://github.com/tiffon/take-examples/tree/master/samples/stackoverflow>`_
+
+   -  `questions-listing.take <https://github.com/tiffon/take-examples/blob/master/samples/stackoverflow/questions-listing.take>`_
+
+   -  `question-page.take <https://github.com/tiffon/take-examples/blob/master/samples/stackoverflow/question-page.take>`_
 
 Install
 -------
@@ -184,8 +201,12 @@ relative URLs will be made absolute via the value of ``'base_url'``.
 Take Templates
 --------------
 
-Take templates are whitespace sensitive and are comprised of two types
+Take templates are whitespace sensitive and are comprised of three types
 of statements:
+
+-  Comment Lines
+
+   -  ``# some comment``
 
 -  Queries
 
@@ -204,6 +225,19 @@ of statements:
    -  ``merge: *``
 
    -  ``def: get comments``
+
+Comment Lines
+-------------
+
+Any line with a ``#`` as the first non-whitespace character is considered a comment line.
+
+::
+
+    # this line is a comment
+    # the third line is a CSS selector query
+    $ #main-nav a
+
+Comment lines are completely ignored. Partially commented lines and multi-line comments are not supported at this time.
 
 Queries
 -------
@@ -422,6 +456,8 @@ The following directives are built-in:
 Save Directive
 ^^^^^^^^^^^^^^
 
+*Alias:* ``:``
+
 Save directives save the context into the result ``dict``. These are
 generally only intended to be applied to the result of non-CSS Selector
 queries.
@@ -552,6 +588,8 @@ Will result in the following python ``dict``:
 Namespace Directive
 ^^^^^^^^^^^^^^^^^^^
 
+*Alias:* ``+``
+
 Namespace directives create a sub-``dict`` on the current result-value and everyting in the
 next sub-context is saved into the new ``dict``.
 
@@ -561,6 +599,8 @@ The syntax is:
 
     namespace: <identifier>
         <sub-context>
+
+``<identifier>`` is the key the sub-``dict`` is saved as.
 
 An example:
 
@@ -596,19 +636,45 @@ Will result in the following python ``dict``:
 The ``description`` and ``url`` fields are saved in the ``first_a`` namespace. This reduces
 the need for save directives like: ``first_a.description``.
 
+``+`` is an alias for the ``namespace`` directive. So, the template above can also be written as:
+
+::
+
+    $ a | 0
+        +       : first_a
+            | text
+                save: description
+            | [href]
+                save: url
+
+Or, more succinctly, using inline sub-contexts and the ``:`` alias for save:
+
+::
+
+    $ a | 0 ; +         : first_a
+            | text ;        : description
+            | [href] ;      : url
+
+
+
 Shrink Directive
 ^^^^^^^^^^^^^^^^
 
-The ``shrink`` directive trims and collapses whitespace from text. If it is applied to an element,
-it will be applied to the element's text.
+The ``shrink`` directive trims and collapses whitespace from text. It doesn't take any parameters,
+so the usage is just the word ``shrink``:
 
 ::
 
     $ p | text ;            : with_spacing
-    $ p | text ; shrink ;   : shrunk_a
-    $ p ; shrink ;          : shrunk_b
+    $ p | text ; shrink ;   : shrink_on_text
 
-Applying the above take template to the following HTML:
+If applied to an element, it will be applied to the element's text.
+
+::
+
+    $ p ; shrink ;          : shrink_on_elem
+
+Applying the above statements to the following HTML:
 
 .. code:: html
 
@@ -620,8 +686,8 @@ Will result in the following python ``dict``:
 
     {
         'with_spacing': 'Hello       World!',
-        'shrunk_a': 'Hello World!',
-        'shrunk_b': 'Hello World!'
+        'shrink_on_text': 'Hello World!',
+        'shrink_on_elem': 'Hello World!'
     }
 
 Def Directive
@@ -738,8 +804,100 @@ would result in a ``dict`` similar to the following:
         'first_main_url': 'http://ext.com/a'
     }
 
+Merge Directive
+^^^^^^^^^^^^^^^^
 
-TODO: merge
+*Alias:* ``>>``
+
+The ``merge`` directive copies properties from the context's value and saves them into the result value. The main
+use-case is extracting fields after apply custom directives. ``merge`` performs a shallow copy.
+
+The syntax is:
+
+::
+
+    merge: <field> [<field>]*
+
+The parameter(s) are the properties to copy. They are separated by spaces or a comma and new line.
+
+To copy all the properties from the context value, use a ``*`` as the single parameter:
+
+::
+
+    merge: *
+
+*Note:* ``merge`` expects the context's value to be a ``dict``; behind the scenes it uses the ``mapping[key]`` syntax.
+
+An example:
+
+::
+
+    def: link info
+        | text              : text
+        | [href]            : url
+        | [title]           : title
+
+    $ footer a
+        save each               : footer_links
+            link info
+                merge               : url
+
+Applying the above take template to the following HTML:
+
+.. code:: html
+
+    <html>
+        <head>...</head>
+        <body>
+            <div class="main">
+                ...
+            </div>
+            <footer>
+                <ul>
+                    <li>
+                        <a href="/about" title="All about our company">Team</a>
+                    </li>
+                    <li>
+                        <a href="https://blog.example.com" title="Our self-promos">Blog</a>
+                    </li>
+                    <li>
+                        <a href="www.facebook.com/example" title="Our facebook page">Facebook</a>
+                    </li>
+                    <li>
+                        <a href="/privacy" title="Legalese">Privacy</a>
+                    </li>
+                </ul>
+            </footer>
+        </body>
+    </html>
+
+Will result in the following python ``dict``:
+
+.. code:: python
+
+    {
+        'footer_links': [
+            {'url': '/about'},
+            {'url': 'https://blog.example.com'},
+            {'url': 'www.facebook.com/example'},
+            {'url': '/privacy'}
+        ]
+    }
+
+To copy more than one property, separate the propertynames with a space or a comma and new-line"
+
+::
+
+                        # separated by spaces
+    merge               : url title
+
+                        # separated with comma line-continuation
+    merge               : url,
+                          title
+
+                        # using the `>>` alias
+    >>                  : url,
+                          title
 
 
 .. _PyQuery: https://pythonhosted.org/pyquery/index.html
