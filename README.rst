@@ -276,9 +276,9 @@ Non-CSS Selector Queries
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Non-CSS selector queries start with ``|`` and continue until the ``;`` character or the
-line ends. There are five non-CSS Selector queries:
+line ends. There are five non-CSS selector queries:
 
--  Element indexes
+-  *Element indexes*
 
    -  Syntax: an integer
 
@@ -288,7 +288,7 @@ line ends. There are five non-CSS Selector queries:
 
    -  ``| -1`` will return the last element in the current context
 
--  Attribute retrieval
+-  *Attribute retrieval*
 
    -  Syntax: ``[attr]``
 
@@ -298,7 +298,7 @@ line ends. There are five non-CSS Selector queries:
    -  ``| 1 [href]`` will return the value of the ``href`` attribute of the
       second element in the current context
 
--  Text retrieval
+-  *Text retrieval*
 
    -  Syntax: ``text``
 
@@ -307,7 +307,7 @@ line ends. There are five non-CSS Selector queries:
    -  ``| 1 text`` will first get the second element in the current context
       and then return it’s text
 
--  Own text retrieval
+-  *Own text retrieval*
 
    -  Syntax: ``own_text``
 
@@ -317,7 +317,7 @@ line ends. There are five non-CSS Selector queries:
    -  ``| 1 own_text`` will first get the second element in the current context
       and then return it’s text without the text from its children
 
--  Field retrieval
+-  *Field retrieval*
 
    -  Syntax: ``.field_name``
 
@@ -427,27 +427,27 @@ The following directives are built-in:
 
 -  ``save``, alias ``:``
 
-   -  Saves a context value to a key in the result ``dict``.
+   -  Saves a value.
 
 -  ``save each``
 
-   -  Executes a sub-context on a list of elements produces a list of ``dict``s.
+   -  Creates a list of results.
 
 -  ``namespace``, alias ``+``
 
-   -  Creates a sub-``dict`` for saving values in.
+   -  Creates child ``dict`` for saving values into.
 
 -  ``shrink``
 
    -  Collapses and trims whitespace.
 
--  ``merge``, alias ``>>``
-
-   -  Saves items from the context into the result dict (similar to the field accessor, but the name cannot be changed).
-
 -  ``def``
 
-   -  Defines a new directive. Currently only new directives defined in the current document are available.
+   -  Defines a new directive. *Currently only new directives defined in the current document are available.*
+
+-  ``merge``, alias ``>>``
+
+   -  Copies a value from a directive's result into the template's result.
 
 Save Directive
 ^^^^^^^^^^^^^^
