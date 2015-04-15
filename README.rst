@@ -470,7 +470,7 @@ The syntax is:
 
     : <identifier>
 
-The identifier can contain anything whitespace, a comma (``,``) or a semi-colin (``;``).
+The identifier can contain anything except whitespace, a comma (``,``) or a semi-colin (``;``).
 Also, the identifier can contain dots (``.``), which designate sub-\ ``dicts`` for
 saving.
 
@@ -525,9 +525,7 @@ Or, more succinctly:
 Save Each Directive
 ^^^^^^^^^^^^^^^^^^^
 
-Save each directives produce a list of dicts. Generally, these are used
-for repeating elements on a page. In the reddit sample, a save each
-directive is used to save each of the reddit entries.
+Save each directives produce a ``dict`` for each element in the context. Generally, these are used for repeating elements on a page. In the `reddit sample <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_, a save each directive is used to save each of the reddit entries.
 
 The syntax is:
 
@@ -536,8 +534,8 @@ The syntax is:
     save each: <identifier>
         <sub-context>
 
-The identifier can contain anything whitespace, a comma (``,``) or a semi-colin (``;``).
-Also, the identifier can contain dots (``.``), which designate sub-\ ``dicts`` for
+The identifier can contain anything except whitespace, a comma (``,``) or a semi-colin (``;``).
+Also, the identifier can contain dots (``.``), which designate sub-\ ``dict``\ s for
 saving.
 
 Save each directives apply the next sub-context to each of the elements
@@ -690,8 +688,8 @@ Def Directive
 ^^^^^^^^^^^^^
 
 The ``def`` directive saves a sub-context as a custom directive which can be invoked later. This is a
-way to re-use sections of a take template. Directives created in this fashion **always result in a new
-``dict``**.
+way to re-use sections of a take template. Directives created in this fashion **always result in a new**
+``dict``.
 
 The syntax is:
 
@@ -715,11 +713,11 @@ invoked. The directive will always result in a new ``dict`` containing ``descrip
 ``url`` keys.
 
 The identifier can contain spaces; all spaces are collapsed to be a single space,
-e.g.``def: some    name`` is collapsed to ``def: some name``.
+e.g. ``def: some    name`` is collapsed to ``def: some name``.
 
-Directives created by ``def`` are invoked without parameters. The example below defines a custom
-and applies it against the first ``<nav>`` element and the first element that matches the CSS
-selector ``.main``.
+Directives created by ``def`` are invoked without parameters.
+
+The example below defines a custom directive and applies it against the first ``<nav>`` element and the first ``<aside>`` element.
 
 ::
 
@@ -731,9 +729,9 @@ selector ``.main``.
     $ nav
         get first link
             save: first_nav_link
-    $ .main
+    $ aside
         get first link
-            save: first_main_link
+            save: first_aside_link
 
 Given the following HTML:
 
@@ -744,16 +742,16 @@ Given the following HTML:
             <a href="/local/a">nav item A</a>
             <a href="/local/b">nav item B</a>
         </nav>
-        <section class="main">
+        <aside>
             <p>some description</p>
-            <a href="http://ext.com/a">main item A</a>
-            <a href="http://ext.com/b">main item B</a>
-        </section>
+            <a href="http://ext.com/a">aside item A</a>
+            <a href="http://ext.com/b">aside item B</a>
+        </aside>
     </div>
 
 
 
-The above template would result in:
+The template would result in:
 
 .. code:: python
 
@@ -762,17 +760,15 @@ The above template would result in:
             'description': 'nav item A',
             'url': '/local/a'
         },
-        'first_main_link': {
-            'description': 'main item A',
+        'first_aside_link': {
+            'description': 'aside item A',
             'url': 'http://ext.com/a'
         }
     }
 
-In the template above, the first invocation of ``get first link`` gets the text and href from the first ``<a>``
-in the first ``<nav>`` element in the document. The second invocation gets the text and href from the first ``<a>``
-in the first element matching the CSS selector ``.main``. In each case, the resulting ``dict`` is saved, as a whole.
+Each time the directive is invoked it returns a python ``dict`` containing ``'description'`` and ``'url'`` keys. The return value of the first invocation is saved into the template's result as ``'first_nav_link'``. The second return value is saved as ``'first_aside_link'``
 
-An alternative way to save the data from a custom directive is to use the field accessor query:
+Another way to save the data from a custom directive is to use the ``| .property`` query. This allows renaming, too:
 
 ::
 
@@ -785,28 +781,27 @@ An alternative way to save the data from a custom directive is to use the field 
         get first link
             | .url ;
                 save: first_nav_url
-    $ .main
+    $ aside
         get first link
             | .url ;
-                save: first_main_url
+                save: first_aside_url
 
-Field accessor queries are a way to save a single field from the results and also allow it to be renamed. The above template
-would result in a ``dict`` similar to the following:
+The above template would result in the following ``dict``:
 
 .. code:: python
 
     {
         'first_nav_url': '/local/a',
-        'first_main_url': 'http://ext.com/a'
+        'first_aside_url': 'http://ext.com/a'
     }
 
 Merge Directive
-^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 *Alias:* ``>>``
 
 The ``merge`` directive copies properties from the context's value and saves them into the result value. The main
-use-case is extracting fields after apply custom directives. ``merge`` performs a shallow copy.
+use-case is extracting data from the result of a custom directive. ``merge`` performs a shallow copy.
 
 The syntax is:
 
@@ -814,9 +809,9 @@ The syntax is:
 
     merge: <field> [<field>]*
 
-The parameter(s) are the properties to copy. They are separated by spaces or a comma and new line.
+The parameter(s) are the keys to copy. They are separated by spaces or a comma and new line.
 
-To copy all the properties from the context value, use a ``*`` as the single parameter:
+The special parameter ``*`` can be used to copy all the keys. If used, it should be the only parameter:
 
 ::
 
@@ -880,7 +875,7 @@ Will result in the following python ``dict``:
         ]
     }
 
-To copy more than one property, separate the propertynames with a space or a comma and new-line"
+To copy more than one property, separate the property names with a space or a comma and new-line:
 
 ::
 
