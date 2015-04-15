@@ -259,7 +259,7 @@ class TestMergeDirective():
                 $ li | 0 text
                         save: value
             simple
-                merge: *
+                merge: value
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
@@ -271,7 +271,7 @@ class TestMergeDirective():
                 $ li | 0 text
                         save: value
             simple
-                >> : *
+                >> : value
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
