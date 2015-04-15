@@ -99,7 +99,7 @@ For more complex examples:
 
    -  `Verbose version <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_
 
--  Scraping the latest `web-scraping questions<http://stackoverflow.com/questions/tagged/web-scraping?sort=newest&pageSize=10>`_ on Stack Overflow:
+-  Scraping the latest `web-scraping questions <http://stackoverflow.com/questions/tagged/web-scraping?sort=newest&pageSize=10>`_ on Stack Overflow:
 
    -  `Overview <https://github.com/tiffon/take-examples/tree/master/samples/stackoverflow>`_
 
