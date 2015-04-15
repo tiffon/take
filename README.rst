@@ -39,16 +39,15 @@ And the following HTML:
     <div>
         <h1>Le Title 1</h1>
         <p>Some body here</p>
-        <h2 class="second title">The second title</h2>
-        <p>Another body here</p>
+        <p>The second body here</p>
         <ul id="a">
             <li title="a less than awesome title">A first li</li>
-            <li>A second li</li>
+            <li>Second li in list #a</li>
             <li>A third li</li>
         </ul>
         <ul id="b">
             <li title="some awesome title">B first li</li>
-            <li>B second li</li>
+            <li>Second li in list #b</li>
             <li>B third li</li>
         </ul>
     </div>
@@ -59,15 +58,15 @@ The following data will be extracted (presented in JSON format):
 
     {
         "h1_title": "Le Title 1",
-        "p_text": "Another body here",
+        "p_text": "The second body here",
         "uls": [
             {
                 "title": "a less than awesome title",
-                "second_li": "A second li"
+                "second_li": "Second li in list #a"
             },
             {
                 "title": "some awesome title",
-                "second_li": "B second li"
+                "second_li": "Second li in list #b"
             }
         ]
     }
@@ -86,7 +85,27 @@ The template can also be written in the following, more concise, syntax:
                 | 1 text ;              : second_li
     $ p | 1 text ;                  : p_text
 
-For a more complex example, see the `reddit sample <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_ (`inline version <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_).
+The example above is formatted with extra whitespace to make the structure
+of the resulting data more apparent.
+
+More Examples
+^^^^^^^^^^^^^
+
+For more complex examples:
+
+-  Scraping the `reddit home page <http://www.reddit.com/>`_
+
+   -  `Inline version <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_
+
+   -  `Verbose version <https://github.com/tiffon/take/blob/master/sample/reddit.take>`_
+
+-  Scraping the latest `web-scraping questions <http://stackoverflow.com/questions/tagged/web-scraping?sort=newest&pageSize=10>`_ on Stack Overflow:
+
+   -  `Overview <https://github.com/tiffon/take-examples/tree/master/samples/stackoverflow>`_
+
+   -  `questions-listing.take <https://github.com/tiffon/take-examples/blob/master/samples/stackoverflow/questions-listing.take>`_
+
+   -  `question-page.take <https://github.com/tiffon/take-examples/blob/master/samples/stackoverflow/question-page.take>`_
 
 Install
 -------
@@ -185,7 +204,11 @@ Take Templates
 Take templates are whitespace sensitive and are comprised of three types
 of statements:
 
--  A query
+-  Comment Lines
+
+   -  ``# some comment``
+
+-  Queries
 
    -  ``$ h1``
 
@@ -193,20 +216,28 @@ of statements:
 
    -  ``$ h1 | 0 text``
 
--  A ``save`` directive
+-  Directives
 
    -  ``save: h1_title``
 
-   -  ``save: time.exact``
+   -  ``save each: comments``
 
--  A ``save each`` directive
+   -  ``merge: *``
 
-   -  ``save each: entries``
+   -  ``def: get comments``
 
-   -  ``save each: popular.movies``
+Comment Lines
+-------------
 
-There are also inline sub-contexts, which are described in the
-`Inline Sub-Contexts <#inline-sub-contexts>`_ section.
+Any line with a ``#`` as the first non-whitespace character is considered a comment line.
+
+::
+
+    # this line is a comment
+    # the third line is a CSS selector query
+    $ #main-nav a
+
+Comment lines are completely ignored. Partially commented lines and multi-line comments are not supported at this time.
 
 Queries
 -------
@@ -217,17 +248,18 @@ There are two main types of queries in take templates:
 
 -  Non-CSS selector queries
 
-The reason they’re divided like this is because CSS Selectors always go
-first on the line and they can be followed by non-CSS non-CSS Selector queries.
+The reason they’re divided like this is because CSS selectors always go
+first on the line and they can be followed by non-CSS selector queries.
 Non-CSS selector queries can’t be followed by CSS selector queries.
 Seems easier to read this way, but it’s arbitrary and may change.
 
-CSS Selector queries
+CSS Selector Queries
 ^^^^^^^^^^^^^^^^^^^^
 
 CSS selector queries start with ``$`` and end either at the end of the
-line or at the ``|`` character. The ``|`` character delimits non-CSS
-selector queries.
+line, the ``|`` character or the ``;`` character. The ``|`` character
+is the starting character for non-CSS selector queries, and the ``;``
+character ends the statement and starts an `inline sub-context <#inline-sub-contexts>`_.
 
 -  ``$ #siteTable .thing | text``
 -  ``$ .domain a``
@@ -240,13 +272,13 @@ accept can be used. From what I understand, there are a few `bugs`_ in
 PyQuery (that may be in the underlying libraries `lxml`_ or
 `cssselect`_). Those will come up.
 
-Non-CSS Selector queries
+Non-CSS Selector Queries
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Non-CSS selector queries start with ``|`` and continue for the rest of
-the line. There are three non-CSS Selector queries:
+Non-CSS selector queries start with ``|`` and continue until the ``;`` character or the
+line ends. There are five non-CSS selector queries:
 
--  Element indexes
+-  **Element indexes**
 
    -  Syntax: an integer
 
@@ -254,16 +286,9 @@ the line. There are three non-CSS Selector queries:
 
    -  ``| 1`` will return the second element in the current context
 
--  Text retrieval
+   -  ``| -1`` will return the last element in the current context
 
-   -  Syntax: ``text``
-
-   -  ``| text`` will return the text of the current context
-
-   -  ``| 1 text`` will first get the second element in the current context
-      and then return it’s text
-
--  Attribute retrieval
+-  **Attribute retrieval**
 
    -  Syntax: ``[attr]``
 
@@ -273,12 +298,40 @@ the line. There are three non-CSS Selector queries:
    -  ``| 1 [href]`` will return the value of the ``href`` attribute of the
       second element in the current context
 
-**Order matters**: Index queries should precede text or attribute
-retrieval queries. Only one of text or attribute queries can be used;
-they can’t both be used on one line.
+-  **Text retrieval**
 
-Whitespace
-----------
+   -  Syntax: ``text``
+
+   -  ``| text`` will return the text of the current context
+
+   -  ``| 1 text`` will first get the second element in the current context
+      and then return it’s text
+
+-  **Own text retrieval**
+
+   -  Syntax: ``own_text``
+
+   -  ``| own_text`` will return the text of the current context without the text
+      from its children
+
+   -  ``| 1 own_text`` will first get the second element in the current context
+      and then return it’s text without the text from its children
+
+-  **Field retrieval**
+
+   -  Syntax: ``.field_name``
+
+   -  ``| .description`` will do a dictionary lookup on the context and retrieve
+      the value of the ``'description'`` item
+
+   -  ``| .parent.child`` will do a dictionary lookup on the context and retrieve
+      the value of the ``'parent'`` and then it will lookup ``'child'`` on that value
+
+**Order matters**: Index queries should precede other queries. Also, only one
+of ``[attr]``, ``text``, ``own_text`` or ``.field_name`` queries can be used.
+
+Indentation
+-----------
 
 The level of indentation on each line defines the context for the line.
 
@@ -321,27 +374,104 @@ This could be rewritten as:
         | text
         | [href]
 
-Save Directives
----------------
+Inline Sub Contexts
+^^^^^^^^^^^^^^^^^^^
 
-Save directives save the context into the result ``dict``. These are
-generally only intended to be applied to the result of a ``text`` or
-``[attr]`` retrieval.
-
-Their syntax is:
+Inline sub-contexts allow multuple statements per line. The syntax is:
 
 ::
 
-    save: identifier
+    statement ; sub-context-statement
+
+The main thing to note is: whatever comes after the semi-colin is treated as if it were a line with deeper indentation.
+
+Inline sub-contexts are primarily used with directives. For example, the following take template:
+
+::
+
+    $ h1 | 0 text
+        save: section_title
+
+Can be re-written as:
+
+::
+
+    $ h1 | 0 text ; save: document_title
+
+Both templates save the text in the first ``<h1>`` element into the result ``dict`` with the key ``'document_title'``. More on `save directives <#save-directive>`_ later.
+
+Directives
+----------
+
+Directives are commands that are executed against the current context.
+They're format is a directive name followed by an optional parameter list:
+
+::
+
+    <directive_name> [: <parameter>[<whitespace or comma> <parameter>]*]?
+
+An example of a ``save`` directive:
+
+::
+
+    save : some_name
+
+Not all directives require parameters. For example, the ``shrink`` directive,
+which collapses whitespace, does not:
+
+::
+
+    shrink
+
+The following directives are built-in:
+
+-  ``save``, alias ``:``
+
+   -  Saves a value.
+
+-  ``save each``
+
+   -  Creates a list of results.
+
+-  ``namespace``, alias ``+``
+
+   -  Creates child ``dict`` for saving values into.
+
+-  ``shrink``
+
+   -  Collapses and trims whitespace.
+
+-  ``def``
+
+   -  Defines a new directive. *Currently only new directives defined in the current document are available.*
+
+-  ``merge``, alias ``>>``
+
+   -  Copies a value from a directive's result into the template's result.
+
+Save Directive
+^^^^^^^^^^^^^^
+
+*Alias:* ``:``
+
+Save directives save the context into the result ``dict``. These are
+generally only intended to be applied to the result of non-CSS Selector
+queries.
+
+The syntax is:
+
+::
+
+    save: <identifier>
 
 ``:`` is an alias for ``save:``. So, a save directive can also be written as:
 
 ::
 
-    : identifier
+    : <identifier>
 
-Any non-whitespace characters can be used as the identifier. Also, the
-identifier can contain dots (``.``), which designate sub-\ ``dicts`` for
+The identifier can contain anything except whitespace, a comma (``,``) or a semi-colin (``;``).
+Also, the identifier can contain dots (``.``), which designate sub-\ ``dicts`` for
 saving.
 
 For example, the following take template:
@@ -350,9 +480,9 @@ For example, the following take template:
 
     $ a | 0
         | text
-            save: first_a.text
+            save: first_a.description
         | [href]
-            save: first_a.href
+            save: first_a.url
 
 And the following HTML:
 
@@ -369,8 +499,8 @@ Will result in the following python ``dict``:
 
     {
         'first_a': {
-            'text': 'fo sho',
-            'href': 'http://www.example.com'
+            'description': 'fo sho',
+            'url': 'http://www.example.com'
         }
     }
 
@@ -384,26 +514,33 @@ Using the ``:`` alias, the template can be written as:
         | [href]
             : first_a.href
 
-Save Each Directives
---------------------
-
-Save each directives produce a list of dicts. Generally, these are used
-for repeating elements on a page. In the reddit sample, a save each
-directive is used to save each of the reddit entries.
-
-Their syntax is:
+Or, more succinctly:
 
 ::
 
-    save each: identifier
+    $ a | 0
+        | text ;        : first_a.text
+        | [href] ;      : first_a.href
 
-Any non-whitespace characters can be used as the identifier. Also, the
-identifier can contain dots (``.``), which designate sub-\ ``dicts`` for
+Save Each Directive
+^^^^^^^^^^^^^^^^^^^
+
+Save each directives produce a ``dict`` for each element in the context. Generally, these are used for repeating elements on a page. In the `reddit sample <https://github.com/tiffon/take/blob/master/sample/reddit_inline_saves.take>`_, a save each directive is used to save each of the reddit entries.
+
+The syntax is:
+
+::
+
+    save each: <identifier>
+        <sub-context>
+
+The identifier can contain anything except whitespace, a comma (``,``) or a semi-colin (``;``).
+Also, the identifier can contain dots (``.``), which designate sub-\ ``dict``\ s for
 saving.
 
 Save each directives apply the next sub-context to each of the elements
-of their context. Put another way, save each directives repeatedly
-process each element of thier context.
+of their context value. Put another way, save each directives repeatedly
+process each element of their context.
 
 For example, in the following take template, the ``| text`` and
 ``| [href]`` queries (along with saving the results) will be applied to
@@ -414,9 +551,9 @@ every ``<a>`` in the document.
     $ a
         save each: anchors
             | text
-                save: text
+                save: description
             | [href]
-                save: href
+                save: url
 
 Applying the above take template to the following HTML:
 
@@ -433,56 +570,325 @@ Will result in the following python ``dict``:
 
     {
         'anchors': [{
-                'text': 'fo sho',
-                'href': 'http://www.example.com'
+                'description': 'fo sho',
+                'url': 'http://www.example.com'
             },{
-                'text': 'psych out',
-                'href': 'http://www.another.com'
+                'description': 'psych out',
+                'url': 'http://www.another.com'
             }
         ]
     }
 
-Inline Sub Contexts
--------------------
+Namespace Directive
+^^^^^^^^^^^^^^^^^^^
 
-Very often take templates contain statements like the following:
+*Alias:* ``+``
 
-::
-
-    $ h1 | text
-        save: section_title
-
-Inline sub-contexts can make statements like these more succinct. Inline
-sub-contexts allow you to create a sub-context on the same line as a query.
+Namespace directives create a sub-``dict`` on the current result-value and everyting in the
+next sub-context is saved into the new ``dict``.
 
 The syntax is:
 
 ::
 
-    query ; sub-context-statement
+    namespace: <identifier>
+        <sub-context>
 
-For example, the template above that saves the ``h1`` text can be re-written as:
+``<identifier>`` is the key the sub-``dict`` is saved as.
 
-::
-
-    $ h1 | text ; save: section_title
-
-This can be handy for larger templates. The sample at the beginning of this document
-becomes:
+An example:
 
 ::
 
-    $ h1 | text ;                   : h1_title
-    $ ul
-        save each                   : uls
-            $ li
-                | 0 [title] ;           : title
-                | 1 text ;              : second_li
-    $ p | 1 text ;                  : p_text
+    $ a | 0
+        namespace: first_a
+            | text
+                save: description
+            | [href]
+                save: url
 
-This version of the template also uses the ``:`` alias for save. Additionally,
-whitespace is used to offset the identifiers in the ``save`` and ``save each``
-statements to make the structure of the resulting data more apparent.
+Applying the above take template to the following HTML:
+
+.. code:: html
+
+    <div>
+        <a href="http://www.example.com">fo sho</a>
+        <a href="http://www.another.com">psych out</a>
+    </div>
+
+Will result in the following python ``dict``:
+
+.. code:: python
+
+    {
+        'first_a': {
+            'description': 'fo sho',
+            'url': 'http://www.example.com'
+        }
+    }
+
+The ``description`` and ``url`` fields are saved in the ``first_a`` namespace. This reduces
+the need for save directives like: ``first_a.description``.
+
+``+`` is an alias for the ``namespace`` directive. So, the template above can also be written as:
+
+::
+
+    $ a | 0
+        +       : first_a
+            | text
+                save: description
+            | [href]
+                save: url
+
+Or, more succinctly, using inline sub-contexts and the ``:`` alias for save:
+
+::
+
+    $ a | 0 ; +         : first_a
+            | text ;        : description
+            | [href] ;      : url
+
+
+
+Shrink Directive
+^^^^^^^^^^^^^^^^
+
+The ``shrink`` directive trims and collapses whitespace from text. It doesn't take any parameters,
+so the usage is just the word ``shrink``:
+
+::
+
+    $ p | text ;            : with_spacing
+    $ p | text ; shrink ;   : shrink_on_text
+
+If applied to an element, it will be applied to the element's text.
+
+::
+
+    $ p ; shrink ;          : shrink_on_elem
+
+Applying the above statements to the following HTML:
+
+.. code:: html
+
+    <p>Hello       World!</p>
+
+Will result in the following python ``dict``:
+
+.. code:: python
+
+    {
+        'with_spacing': 'Hello       World!',
+        'shrink_on_text': 'Hello World!',
+        'shrink_on_elem': 'Hello World!'
+    }
+
+Def Directive
+^^^^^^^^^^^^^
+
+The ``def`` directive saves a sub-context as a custom directive which can be invoked later. This is a
+way to re-use sections of a take template. Directives created in this fashion **always result in a new**
+``dict``.
+
+The syntax is:
+
+::
+
+    def: <identifier>
+        <sub-context>
+
+For example:
+
+::
+
+    def: get first link
+        $ a | 0
+            | text ;    : description
+            | [href] ;  : url
+
+In the above template, a new directive named ``get first link`` is created. The new directive saves
+the text and href attribute from the first ``<a>`` element in the context onto which it is
+invoked. The directive will always result in a new ``dict`` containing ``description`` and
+``url`` keys.
+
+The identifier can contain spaces; all spaces are collapsed to be a single space,
+e.g. ``def: some    name`` is collapsed to ``def: some name``.
+
+Directives created by ``def`` are invoked without parameters.
+
+The example below defines a custom directive and applies it against the first ``<nav>`` element and the first ``<aside>`` element.
+
+::
+
+    def: get first link
+        $ a | 0
+            | text ;    : description
+            | [href] ;  : url
+
+    $ nav
+        get first link
+            save: first_nav_link
+    $ aside
+        get first link
+            save: first_aside_link
+
+Given the following HTML:
+
+.. code:: html
+
+    <div>
+        <nav>
+            <a href="/local/a">nav item A</a>
+            <a href="/local/b">nav item B</a>
+        </nav>
+        <aside>
+            <p>some description</p>
+            <a href="http://ext.com/a">aside item A</a>
+            <a href="http://ext.com/b">aside item B</a>
+        </aside>
+    </div>
+
+
+
+The template would result in:
+
+.. code:: python
+
+    {
+        'first_nav_link': {
+            'description': 'nav item A',
+            'url': '/local/a'
+        },
+        'first_aside_link': {
+            'description': 'aside item A',
+            'url': 'http://ext.com/a'
+        }
+    }
+
+Each time the directive is invoked it returns a python ``dict`` containing ``'description'`` and ``'url'`` keys. The return value of the first invocation is saved into the template's result as ``'first_nav_link'``. The second return value is saved as ``'first_aside_link'``
+
+Another way to save the data from a custom directive is to use the ``| .property`` query. This allows renaming, too:
+
+::
+
+    def: get first link
+        $ a | 0
+            | text ;    : description
+            | [href] ;  : url
+
+    $ nav
+        get first link
+            | .url ;
+                save: first_nav_url
+    $ aside
+        get first link
+            | .url ;
+                save: first_aside_url
+
+The above template would result in the following ``dict``:
+
+.. code:: python
+
+    {
+        'first_nav_url': '/local/a',
+        'first_aside_url': 'http://ext.com/a'
+    }
+
+Merge Directive
+^^^^^^^^^^^^^^^
+
+*Alias:* ``>>``
+
+The ``merge`` directive copies properties from the context's value and saves them into the result value. The main
+use-case is extracting data from the result of a custom directive. ``merge`` performs a shallow copy.
+
+The syntax is:
+
+::
+
+    merge: <field> [<field>]*
+
+The parameter(s) are the keys to copy. They are separated by spaces or a comma and new line.
+
+The special parameter ``*`` can be used to copy all the keys. If used, it should be the only parameter:
+
+::
+
+    merge: *
+
+*Note:* ``merge`` expects the context's value to be a ``dict``; behind the scenes it uses the ``mapping[key]`` syntax.
+
+An example:
+
+::
+
+    def: link info
+        | text              : text
+        | [href]            : url
+        | [title]           : title
+
+    $ footer a
+        save each               : footer_links
+            link info
+                merge               : url
+
+Applying the above take template to the following HTML:
+
+.. code:: html
+
+    <html>
+        <head>...</head>
+        <body>
+            <div class="main">
+                ...
+            </div>
+            <footer>
+                <ul>
+                    <li>
+                        <a href="/about" title="All about our company">Team</a>
+                    </li>
+                    <li>
+                        <a href="https://blog.example.com" title="Our self-promos">Blog</a>
+                    </li>
+                    <li>
+                        <a href="www.facebook.com/example" title="Our facebook page">Facebook</a>
+                    </li>
+                    <li>
+                        <a href="/privacy" title="Legalese">Privacy</a>
+                    </li>
+                </ul>
+            </footer>
+        </body>
+    </html>
+
+Will result in the following python ``dict``:
+
+.. code:: python
+
+    {
+        'footer_links': [
+            {'url': '/about'},
+            {'url': 'https://blog.example.com'},
+            {'url': 'www.facebook.com/example'},
+            {'url': '/privacy'}
+        ]
+    }
+
+To copy more than one property, separate the property names with a space or a comma and new-line:
+
+::
+
+                        # separated by spaces
+    merge               : url title
+
+                        # separated with comma line-continuation
+    merge               : url,
+                          title
+
+                        # using the `>>` alias
+    >>                  : url,
+                          title
 
 
 .. _PyQuery: https://pythonhosted.org/pyquery/index.html

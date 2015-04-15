@@ -1,3 +1,4 @@
+import os
 import pytest
 
 from pyquery import PyQuery
@@ -6,34 +7,11 @@ from take import TakeTemplate
 from take.parser import InvalidDirectiveError, UnexpectedTokenError, TakeSyntaxError
 from take.scanner import ScanError
 
-HTML_FIXTURE = """
-<div>
-    <h1 id="id-on-h1">Text in h1</h1>
-    <nav>
-        <ul id="first-ul" title="nav ul title">
-            <li>
-                <a href="/local/a">first nav item</a>
-            </li>
-            <li>
-                <a href="/local/b">second nav item</a>
-            </li>
-        </ul>
-    </nav>
-    <section>
-        <p>some description</p>
-        <ul id="second-ul" title="content ul title">
-            <li>
-                <a href="http://ext.com/a">first content link</a>
-            </li>
-            <li>
-                <a href="http://ext.com/b">second content link</a>
-            </li>
-        </ul>
-    </section>
-</div>
-"""
+here = os.path.dirname(os.path.abspath(__file__))
+with open(here + '/doc.html') as f:
+    html_fixture = f.read()
 
-DOC = PyQuery(HTML_FIXTURE)
+pq_doc = PyQuery(html_fixture)
 
 
 @pytest.mark.basic
@@ -53,8 +31,8 @@ class TestBaseFunctionality():
             save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC.html()
+        data = tt(html_fixture)
+        assert data['value'].html() == pq_doc.html()
 
 
     def test_save_alias(self):
@@ -62,8 +40,8 @@ class TestBaseFunctionality():
             : value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC.html()
+        data = tt(html_fixture)
+        assert data['value'].html() == pq_doc.html()
 
 
     def test_deep_save(self):
@@ -71,8 +49,8 @@ class TestBaseFunctionality():
             save: parent.value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['parent']['value'].html() == DOC.html()
+        data = tt(html_fixture)
+        assert data['parent']['value'].html() == pq_doc.html()
 
 
     def test_deep_save_alias(self):
@@ -80,8 +58,8 @@ class TestBaseFunctionality():
             : parent.value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['parent']['value'].html() == DOC.html()
+        data = tt(html_fixture)
+        assert data['parent']['value'].html() == pq_doc.html()
 
 
     def test_save_css_query(self):
@@ -90,8 +68,8 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC('h1').html()
+        data = tt(html_fixture)
+        assert data['value'].html() == pq_doc('h1').html()
 
 
     def test_save_css_text_query(self):
@@ -100,7 +78,7 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'value': 'Text in h1'}
 
 
@@ -110,8 +88,8 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC('a').eq(0).html()
+        data = tt(html_fixture)
+        assert data['value'].html() == pq_doc('a').eq(0).html()
 
 
     def test_save_css_index_text_query(self):
@@ -120,8 +98,8 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'] == DOC('a').eq(0).text()
+        data = tt(html_fixture)
+        assert data['value'] == 'first nav item'
 
 
     def test_absent_index(self):
@@ -130,7 +108,7 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data['value'] == ''
 
 
@@ -140,10 +118,8 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        anchors = DOC('a')
-        text = anchors.eq(len(anchors) - 1).text()
-        assert data == {'value': text}
+        data = tt(html_fixture)
+        assert data['value'] == 'second content link'
 
 
     def test_absent_neg_index(self):
@@ -152,7 +128,7 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data['value'] == ''
 
 
@@ -162,7 +138,7 @@ class TestBaseFunctionality():
                 save: deep.value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'deep': {'value': 'Text in h1'}}
 
 
@@ -173,7 +149,7 @@ class TestBaseFunctionality():
                     save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'value': 'second-ul'}
 
 
@@ -184,7 +160,7 @@ class TestBaseFunctionality():
                     save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'value': None}
 
 
@@ -197,7 +173,7 @@ class TestBaseFunctionality():
                 save: value
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'sub_ctx_value': 'first-ul',
                         'value': 'some description'}
 
@@ -218,7 +194,7 @@ class TestBaseFunctionality():
                 # shouldn't affect things
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'sub_ctx_value': 'first-ul',
                         'value': 'some description'}
 
@@ -234,7 +210,7 @@ class TestBaseFunctionality():
                             save: text
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         expect = {
             'nav': [{
                     'url': '/local/a',
@@ -259,7 +235,7 @@ class TestBaseFunctionality():
                             save: item.text
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         expect = {
             'nav': {
                 'items': [{
@@ -287,10 +263,10 @@ class TestBaseFunctionality():
                 save: ext
         """
         tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'local': '/local/a',
                         'ext': 'http://ext.com/b'}
-        data = tt(HTML_FIXTURE, base_url='http://www.example.com')
+        data = tt(html_fixture, base_url='http://www.example.com')
         assert data == {'local': 'http://www.example.com/local/a',
                         'ext': 'http://ext.com/b'}
 
@@ -303,46 +279,9 @@ class TestBaseFunctionality():
                 save: ext
         """
         tt = TakeTemplate(TMPL, base_url='http://www.example.com')
-        data = tt(HTML_FIXTURE)
+        data = tt(html_fixture)
         assert data == {'local': 'http://www.example.com/local/a',
                         'ext': 'http://ext.com/b'}
-
-
-@pytest.mark.inline_ctx
-class TestInlineSubCtx():
-
-    def test_css_sub_ctx_save(self):
-        TMPL = """
-            $ h1 ; save: value
-        """
-        tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC('h1').html()
-
-    def test_accessor_sub_ctx_save(self):
-        TMPL = """
-            $ h1
-                | 0 ; save: value
-        """
-        tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'].html() == DOC('h1').html()
-
-    def test_css_accessor_sub_ctx_save(self):
-        TMPL = """
-            $ h1 | 0 text ; save: value
-        """
-        tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'] == DOC('h1').text()
-
-    def test_css_accessor_sub_ctx_save_alias(self):
-        TMPL = """
-            $ h1 | 0 text ; : value
-        """
-        tt = TakeTemplate(TMPL)
-        data = tt(HTML_FIXTURE)
-        assert data['value'] == DOC('h1').text()
 
 
 @pytest.mark.invalid_templates
@@ -353,7 +292,7 @@ class TestInvalidTemplates():
             $ h1 | [href]
                 save fail
         """
-        with pytest.raises(ScanError):
+        with pytest.raises(InvalidDirectiveError):
             tt = TakeTemplate(TMPL)
 
 
@@ -371,7 +310,7 @@ class TestInvalidTemplates():
             .hm | [href]
                 hm: fail
         """
-        with pytest.raises(ScanError):
+        with pytest.raises(InvalidDirectiveError):
             tt = TakeTemplate(TMPL)
 
 
@@ -393,3 +332,111 @@ class TestInvalidTemplates():
         """
         with pytest.raises(TakeSyntaxError):
             tt = TakeTemplate(TMPL)
+
+
+@pytest.mark.inline_ctx
+class TestInlineSubCtx():
+
+    def test_css_sub_ctx_save(self):
+        TMPL = """
+            $ h1 | 0 text ; save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'Text in h1'
+
+
+    def test_accessor_sub_ctx_save(self):
+        TMPL = """
+            $ h1
+                | 0 text ; save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'Text in h1'
+
+
+    def test_css_accessor_sub_ctx_save_alias(self):
+        TMPL = """
+            $ h1 | 0 text ; : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'Text in h1'
+
+
+@pytest.mark.field_accessor
+class TestFieldAccessor():
+
+    def test_basic_field_accessor(self):
+        TMPL = """
+            def: simple
+                $ h1 | 0 text
+                    save: def_value
+            simple
+                | .def_value
+                    save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'Text in h1'
+
+    def test_deep_field_accessor(self):
+        TMPL = """
+            def: simple
+                $ h1 | 0 text
+                    save: item.def_value
+
+            simple
+                save        : raw_result
+            simple
+                | .item.def_value
+                    save    : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['raw_result']['item']['def_value'] == 'Text in h1'
+        assert data['value'] == 'Text in h1'
+
+    def test_absent_field(self):
+        TMPL = """
+            def: simple
+                $ h1 | 0 text
+                    save: def_value
+
+            simple
+                | .not_there
+                    save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == None
+
+    def test_deep_absent_field(self):
+        TMPL = """
+            def: simple
+                $ h1 | 0 text
+                    save: def_value
+
+            simple
+                | .very.not_there
+                    save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == None
+
+
+@pytest.mark.own_text_accessor
+class TestOwnTextAccessor():
+
+    def test_basic_own_text(self):
+        TMPL = """
+            $ #not-all-own-text
+                | text ;        save: full_text
+                | own_text ;    save: own_text
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['full_text'] == 'own text not own text more own text'
+        assert data['own_text'] == 'own text  more own text'

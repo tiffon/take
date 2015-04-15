@@ -9,9 +9,10 @@ TMPL_PATH = 'reddit.take'
 INLINE_TMPL_PATH = 'reddit_inline_saves.take'
 
 
-def get_reddit(tmpl_path):
-    tt = TakeTemplate.from_file(tmpl_path, base_url=REDDIT_URL)
-    return tt, tt(url=REDDIT_URL)
+def get_reddit():
+    tt = TakeTemplate.from_file(TMPL_PATH, base_url=REDDIT_URL)
+    inline_tt = TakeTemplate.from_file(INLINE_TMPL_PATH, base_url=REDDIT_URL)
+    return tt(url=REDDIT_URL), inline_tt(url=REDDIT_URL)
 
 
 if __name__ == '__main__':
@@ -19,13 +20,9 @@ if __name__ == '__main__':
         import simplejson as json
     except ImportError:
         import json
-    if 'inline' in sys.argv:
-        tmpl_path = INLINE_TMPL_PATH
-    else:
-        tmpl_path = TMPL_PATH
-    print('Using template: ', tmpl_path)
-    _, data = get_reddit(tmpl_path)
+    data, inline_data = get_reddit()
+    print('Results of both templates are identical:', data == inline_data)
+    assert data == inline_data
     print('Total reddit entries:', len(data['entries']))
-    print('Printing the first two:')
-    data['entries'] = data['entries'][0:2]
-    print(json.dumps(data, indent=4))
+    print('Printing the first entry:')
+    print(json.dumps(data['entries'][0], indent=4))

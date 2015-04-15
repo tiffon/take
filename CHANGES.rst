@@ -4,6 +4,30 @@ Take Changelog
 Here you can see the full list of changes between each take release.
 
 
+Version 0.2.0
+-------------
+
+Unreleased.
+
+- Added the "def" directive to define sub-routines.
+- Added the 'namespace' directive, with '+' alias.
+- Added the "merge" directive, with alias '>>'.
+- Added the field accessor.
+- Added the "own_text" accessor.
+- Added the "shrink" directive.
+- Added comma line-continuations in directive parameter lists.
+- Inline sub-contexts changed to support sub-contexts of their own (instead of having the max-depth).
+- The sample now compares the results of 'reddit.take' vs 'reddit_inline_saves.take' instead of only using one of them.
+- 'reddit_inline_saves.take' changed to use namespaces.
+
+- Allow directives that don't require parameters.
+- Directives also end on ';'.
+- Remove underscores on `ContextParser` method names that are used by directives.
+- Created a ``DirectiveStatementEnd`` token type.
+- Directives are now looked up by name and are external functions with a defined signature.
+- Adjusted the scanner to accept a wider range of directive names.
+
+
 Version 0.1.0
 -------------
 

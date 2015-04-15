@@ -1,54 +1,18 @@
-from collections import namedtuple
+from collections import namedtuple, MutableMapping
+from itertools import chain
 import sys
 
 from pyquery import PyQuery
 
 from ._compat import string_types, StringIO
+from .directives import BUILTIN_DIRECTIVES
+from .exceptions import AlreadyParsedError, UnexpectedEOFError, \
+     UnexpectedTokenError, InvalidDirectiveError, TakeSyntaxError
 from .scanner import Scanner, TokenType
+from .utils import split_name, get_via_name_list
 
 
-class AlreadyParsedError(Exception):
-    pass
-
-class UnexpectedEOFError(Exception):
-    pass
-
-class UnexpectedTokenError(Exception):
-    def __init__(self, found, expected, msg=None, token=None):
-        self.found = found
-        self.expected = expected
-        self.msg = msg
-        self.token = token
-
-    def __str__(self):
-        return ('UnexpectedTokenError {{\n'
-                '       found: {!r}\n'
-                '    expected: {!r}\n'
-                '         msg: {!r}\n'
-                '       token: {}\n'
-                '}}').format(self.found, self.expected, self.msg, self.token)
-
-class InvalidDirectiveError(Exception):
-    def __init__(self, ident, msg=None):
-        self.ident = ident
-        self.msg = msg
-
-    def __str__(self):
-        return ('InvalidDirectiveError {{\n'
-                '      ident: {!r}\n'
-                '    message: {!r}\n'
-                '}}').format(self.ident, self.message)
-
-class TakeSyntaxError(Exception):
-    def __init__(self, msg, extra=None):
-        self.msg = msg
-        self.extra = extra
-
-    def __str__(self):
-        return ('TakeSyntaxError {{\n'
-                '      message: {!r}\n'
-                '        extra: {!r}\n'
-                '}}').format(self.message, self.extra)
+_BUILTIN_DIRECTIVES_IDS = set(BUILTIN_DIRECTIVES.keys())
 
 
 def ensure_pq(elm):
@@ -57,8 +21,10 @@ def ensure_pq(elm):
     else:
         return PyQuery(elm)
 
+
 def make_css_query(selector):
     return lambda elm: ensure_pq(elm)(selector)
+
 
 def make_index_query(index_str):
     index = int(index_str)
@@ -71,32 +37,24 @@ def make_index_query(index_str):
         return elm.eq(i)
     return index_query
 
-def make_text_query():
-    return lambda elm: ensure_pq(elm).text()
+
+def text_query(elm):
+    return ensure_pq(elm).text()
+
+
+def own_text_query(elm):
+    return ''.join(item
+                   for item in ensure_pq(elm).contents()
+                   if isinstance(item, string_types))
+
 
 def make_attr_query(attr):
     return lambda elm: ensure_pq(elm).attr(attr)
 
-def parse_save_to_id(tok):
-    if tok.type_ != TokenType.DirectiveBodyItem:
-        raise UnexpectedTokenError(tok.type_, TokenType.DirectiveBodyItem)
-    save_to = tok.content.strip()
-    if '.' in save_to:
-        return tuple(save_to.split('.'))
-    else:
-        return (save_to,)
 
-def save_to(dest, name_parts, value):
-    """
-    Util to save some name sequence to a dict. For instance, `("location","query")` would save
-    to dest["location"]["query"].
-    """
-    if len(name_parts) > 1:
-        for part in name_parts[:-1]:
-            if part not in dest:
-                dest[part] = {}
-            dest = dest[part]
-    dest[name_parts[-1]] = value
+def make_field_query(name):
+    name_list = split_name(name)
+    return lambda source: get_via_name_list(source, name_list)
 
 
 class ContextNode(object):
@@ -121,19 +79,7 @@ class ContextNode(object):
         self.__rv = rv if rv != None else context.rv
         # value in a sub-context is derived from the last_value in the parent context
         self.__value = value if value != None else context.last_value
-        if last_value != None:
-            self.last_value = last_value
-        elif value != None:
-            self.last_value = value
-        elif context:
-            if context.last_value != None:
-                self.last_value = context.last_value
-            elif context.value != None:
-                self.last_value = context.value
-            else:
-                self.last_value = None
-        else:
-            self.last_value = None
+        self.last_value = last_value if last_value != None else self.__value
         for node in self.__nodes:
             node.do(self)
 
@@ -150,35 +96,73 @@ class QueryNode(namedtuple('QueryNode', 'queries')):
         context.last_value = val
 
 
-class SaveNode(namedtuple('SaveNode', 'ident_parts')):
-    __slots__ = ()
-    def do(self, context):
-        save_to(context.rv, self.ident_parts, context.value)
+class ChainedMapping(MutableMapping):
+    """
+    A dictionary that looks for a specific key and if it's not present looks for
+    it on it's parent
+    """
 
+    def __init__(self, parent=None, *args, **kwargs):
+        self.parent = parent or {}
+        self.store = {}
+        if args:
+            self.update(*args)
+        if kwargs:
+            self.update(**kwargs)
 
-class SaveEachNode(namedtuple('SaveEachNode', 'ident_parts sub_ctx_node')):
-    __slots__ = ()
-    def do(self, context):
-        results = []
-        save_to(context.rv, self.ident_parts, results)
-        for item in context.value:
-            rv = {}
-            results.append(rv)
-            self.sub_ctx_node.do(None, rv, item, item)
+    def __getitem__(self, key):
+        if key in self.store:
+            return self.store[key]
+        return self.parent[key]
+
+    def __setitem__(self, key, value):
+        self.store[key] = value
+
+    def __delitem__(self, key):
+        del self.store[key]
+
+    def __iter__(self):
+        return chain(iter(self.store), iter(self.parent))
+
+    def __len__(self):
+        return len(self.store) + len(self.parent)
+
+    def make_child(self, *args, **kwargs):
+        return ChainedMapping(self, *args, **kwargs)
+
+    def destroy(self, *args, **kwargs):
+        self.parent = None
+        self.store = None
 
 
 class ContextParser(object):
 
-    def __init__(self, depth, tok_gen):
+    def __init__(self, depth, tok_gen, defs=None, from_inline=False):
         self._depth = depth
         self._tok_generator = tok_gen
+        self._defs = defs or ChainedMapping()
+        self._from_inline = from_inline
         self._nodes = None
         self._tok = None
         self._is_done = False
 
+    @property
+    def depth(self):
+        return self._depth
+
+    @property
+    def defs(self):
+        return self._defs
+
+    @property
+    def tok(self):
+        return self._tok
+
     def destroy(self):
         self._depth = None
         self._tok_generator = None
+        self._defs.destroy()
+        self._defs = None
         self._nodes = None
         self._tok = None
         self._is_done = None
@@ -192,7 +176,14 @@ class ContextParser(object):
         return ContextNode(self._depth, self._nodes), tok
 
 
-    def _next_tok(self, eof_errors=True):
+    def spawn_context_parser(self, depth=None, from_inline=False):
+        if depth == None:
+            depth = self._tok.end
+        defs = self._defs.make_child()
+        return ContextParser(depth, self._tok_generator, defs, from_inline)
+
+
+    def next_tok(self, eof_errors=True):
         try:
             self._tok = next(self._tok_generator)
             return self._tok
@@ -204,7 +195,7 @@ class ContextParser(object):
 
     def _parse(self):
         while True:
-            tok = self._next_tok()
+            tok = self.next_tok()
             if tok.type_ == TokenType.QueryStatement:
                 self._parse_query()
                 tok = None
@@ -216,7 +207,7 @@ class ContextParser(object):
                                           (TokenType.QueryStatement, TokenType.DirectiveStatement),
                                           token=tok)
             if not tok:
-                tok = self._next_tok(eof_errors=False)
+                tok = self.next_tok(eof_errors=False)
             if self._is_done:
                 # returning None means EOF ended this context, not a context exit
                 return
@@ -252,24 +243,28 @@ class ContextParser(object):
                 # would be in another sub-context (prob should not allow)
             if tok.end < self._depth:
                 return tok
-            # context token same depth as this context, so continue parsing
+            # context token is the same depth as the current context parser
+            # exit if the current context parse was created from an inline context
+            # (they only persist when the context token is deeper)
+            if self._from_inline:
+                return tok
 
     def _parse_context(self):
-        sub_ctx = ContextParser(self._tok.end, self._tok_generator)
+        sub_ctx = self.spawn_context_parser()
         sub_ctx_node, tok = sub_ctx.parse()
         self._nodes.append(sub_ctx_node)
         sub_ctx.destroy()
         return tok
 
     def _parse_inline_context(self):
-        sub_ctx = ContextParser(sys.maxsize, self._tok_generator)
+        sub_ctx = self.spawn_context_parser(self._depth, True)
         sub_ctx_node, tok = sub_ctx.parse()
         self._nodes.append(sub_ctx_node)
         sub_ctx.destroy()
         return tok
 
     def _parse_query(self):
-        self._next_tok()
+        self.next_tok()
         if self._tok.type_ == TokenType.CSSSelector:
             queries = self._parse_css_selector()
         elif self._tok.type_ == TokenType.AccessorSequence:
@@ -284,7 +279,7 @@ class ContextParser(object):
         selector = self._tok.content.strip()
         # expects a valid css selector
         query = make_css_query(selector)
-        self._next_tok()
+        self.next_tok()
         if self._tok.type_ == TokenType.QueryStatementEnd:
             return (query,)
         elif self._tok.type_ == TokenType.AccessorSequence:
@@ -295,70 +290,75 @@ class ContextParser(object):
 
     def _parse_accessor_seq(self):
         queries = ()
-        tok = self._next_tok()
+        tok = self.next_tok()
         # index accessor has to be first
         if tok.type_ == TokenType.IndexAccessor:
             index_str = tok.content
             queries = (make_index_query(index_str),)
-            tok = self._next_tok()
+            tok = self.next_tok()
             # index accessor can be the only accessor
             if tok.type_ == TokenType.QueryStatementEnd:
                 return queries
+        # text accessor
         if tok.type_ == TokenType.TextAccessor:
-            queries += (make_text_query(),)
+            queries += (text_query,)
+        # own text accessor
+        elif tok.type_ == TokenType.OwnTextAccessor:
+            queries += (own_text_query,)
+        # attr accessor
         elif tok.type_ == TokenType.AttrAccessor:
             # strip spaces and remove the brackets
             # ex: [src]
             attr = tok.content.strip()[1:-1]
             queries += (make_attr_query(attr),)
+        # field accessor
+        elif tok.type_ == TokenType.FieldAccessor:
+            # strip spaces and remove the dot
+            # ex: '".field_name"'
+            field = tok.content.strip()[1:]
+            queries += (make_field_query(field),)
+        # invalid
         else:
             # if it got here, something is wrong, should either have exited after the index
             # accessor (if there was one) or there should have been a text or attr accessor
-            expected = (TokenType.TextAccessor, TokenType.AttrAccessor)
+            expected = (
+                TokenType.TextAccessor,
+                TokenType.OwnTextAccessor,
+                TokenType.AttrAccessor,
+                TokenType.FieldAccessor,
+            )
             if not queries:
                 expected += (TokenType.IndexAccessor,)
             raise UnexpectedTokenError(tok.type_, expected, token=tok)
         # can only have one of text accessor or attr accessor, so do not need to loop
-        tok = self._next_tok()
+        tok = self.next_tok()
         if tok.type_ != TokenType.QueryStatementEnd:
             raise UnexpectedTokenError(tok.type_, TokenType.QueryStatementEnd, token=tok)
         return queries
 
     def _parse_directive(self):
-        tok = self._next_tok()
+        tok = self.next_tok()
         if tok.type_ != TokenType.DirectiveIdentifier:
             raise UnexpectedTokenError(tok.type_, TokenType.DirectiveIdentifier, token=tok)
-        dir_ident = tok.content.strip()
-        if dir_ident == 'save' or dir_ident == ':':
-            return self._parse_save_directive()
-        elif dir_ident == 'save each':
-            return self._parse_save_each_directive()
+        name = tok.content.strip()
+        if name in BUILTIN_DIRECTIVES:
+            end_tok, node = BUILTIN_DIRECTIVES[name](self)
+            if node != None:
+                # node is `None` for `def:` subroutines
+                self._nodes.append(node)
+            return end_tok
+        def_node = self._defs.get(name)
+        if def_node:
+            self._parse_call_user_subroutine(def_node)
         else:
-            raise InvalidDirectiveError(dir_ident, 'Unknown directive, valid directives: %r' %
-                                                   ['save', 'save each'])
+            raise InvalidDirectiveError(name, 'Unknown directive: %s' % name)
 
-    def _parse_save_directive(self):
-        tok = self._next_tok()
-        save_id_parts = parse_save_to_id(tok)
-        node = SaveNode(save_id_parts)
-        self._nodes.append(node)
-
-    def _parse_save_each_directive(self):
-        tok = self._next_tok()
-        save_id_parts = parse_save_to_id(tok)
-        # consume the context token and parse the sub-context SaveEachNode will manage
-        tok = self._next_tok()
-        if tok.type_ != TokenType.Context:
-            raise UnexpectedTokenError(tok.type_, TokenType.Context, token=tok)
-        if tok.end <= self._depth:
-            raise TakeSyntaxError('Invalid depth, expecting to start a "save each" context.',
-                                  extra=tok)
-        sub_ctx = ContextParser(tok.end, self._tok_generator)
-        sub_ctx_node, tok = sub_ctx.parse()
-        sub_ctx.destroy()
-        node = SaveEachNode(save_id_parts, sub_ctx_node)
-        self._nodes.append(node)
-        return tok
+    def _parse_call_user_subroutine(self, def_node):
+        # calling a subroutine
+        self._nodes.append(def_node)
+        tok = self.next_tok()
+        if tok.type_ != TokenType.DirectiveStatementEnd:
+            raise UnexpectedTokenError(tok.type_, TokenType.DirectiveStatementEnd, token=tok)
 
 
 def parse(src):
