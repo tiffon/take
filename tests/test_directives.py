@@ -440,6 +440,25 @@ class TestMergeDirective():
         assert data == expect
 
 
+    def test_merge_line_continuation_w_space(self):
+        TMPL = """
+            def: simple
+                $ li
+                    | 0 text ;      : zero_tx
+                    | 1 text ;      : one_tx
+            simple
+                merge               : zero_tx      ,
+                                      one_tx
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        expect = {
+            'zero_tx': 'first nav item',
+            'one_tx': 'second nav item'
+        }
+        assert data == expect
+
+
     def test_deep_merge_line_continuation(self):
         TMPL = """
             def: simple
