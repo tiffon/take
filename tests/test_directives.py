@@ -25,7 +25,6 @@ class TestNamespaceCtx():
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
-        value = pq_doc('h1').text()
         assert data['parent']['value'] == 'Text in h1'
 
 
@@ -36,7 +35,6 @@ class TestNamespaceCtx():
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
-        value = pq_doc('h1').text()
         assert data['parent']['value'] == 'Text in h1'
 
 
@@ -51,7 +49,6 @@ class TestNamespaceCtx():
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
-        value = pq_doc('h1').text()
         assert data['p0']['p1']['p2']['p3']['p4']['value'] == 'Text in h1'
 
 
@@ -116,6 +113,19 @@ class TestNamespaceCtx():
         assert data['p0a']['second_li'] == 'second nav item'
         assert data['p0a']['second_li_again'] == 'second nav item'
         assert data['p0b']['p1b']['h1'] == 'Text in h1'
+
+
+    def test_repeated_namespaces(self):
+        TMPL = """
+            +                       : links
+                $ a | 0 text ;          : first
+            +                       : links
+                $ a | 1 text ;          : second
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['links']['first'] == 'first nav item'
+        assert data['links']['second'] == 'second nav item'
 
 
 @pytest.mark.directives

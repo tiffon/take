@@ -65,7 +65,10 @@ def make_save_each(parser):
 class _NamespaceNode(namedtuple('_NamespaceNode', 'ident_parts sub_ctx_node')):
     __slots__ = ()
     def do(self, context):
-        sub_rv = {}
+        # re-use the namespace if it was already defined ealier in the doc
+        sub_rv = get_via_name_list(context.rv, self.ident_parts)
+        if not sub_rv:
+            sub_rv = {}
         save_to_name_list(context.rv, self.ident_parts, sub_rv)
         self.sub_ctx_node.do(None, sub_rv, context.value, context.value)
 
