@@ -248,8 +248,8 @@ There are two main types of queries in take templates:
 
 -  Non-CSS selector queries
 
-The reason they’re divided like this is because CSS Selectors always go
-first on the line and they can be followed by non-CSS non-CSS Selector queries.
+The reason they’re divided like this is because CSS selectors always go
+first on the line and they can be followed by non-CSS selector queries.
 Non-CSS selector queries can’t be followed by CSS selector queries.
 Seems easier to read this way, but it’s arbitrary and may change.
 
@@ -259,7 +259,7 @@ CSS Selector Queries
 CSS selector queries start with ``$`` and end either at the end of the
 line, the ``|`` character or the ``;`` character. The ``|`` character
 is the starting character for non-CSS selector queries, and the ``;``
-character ends the statement and starts an `Inline Sub-Contexts <#inline-sub-contexts>`_.
+character ends the statement and starts an `inline sub-context <#inline-sub-contexts>`_.
 
 -  ``$ #siteTable .thing | text``
 -  ``$ .domain a``
@@ -275,8 +275,8 @@ PyQuery (that may be in the underlying libraries `lxml`_ or
 Non-CSS Selector Queries
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Non-CSS selector queries start with ``|`` and continue for the rest of
-the line. There are three non-CSS Selector queries:
+Non-CSS selector queries start with ``|`` and continue until the ``;`` character or the
+line ends. There are five non-CSS Selector queries:
 
 -  Element indexes
 
@@ -285,6 +285,8 @@ the line. There are three non-CSS Selector queries:
    -  ``| 0`` will return the first element in the current context
 
    -  ``| 1`` will return the second element in the current context
+
+   -  ``| -1`` will return the last element in the current context
 
 -  Attribute retrieval
 
@@ -381,28 +383,22 @@ Inline sub-contexts allow multuple statements per line. The syntax is:
 
     statement ; sub-context-statement
 
-For example, the first line in the follow template is equivalent to the
-next two lines:
+The main thing to note is: whatever comes after the semi-colin is treated as if it were a line with deeper indentation.
 
-::
-
-    $ li ; $ a
-    $ li
-        $ a
-
-Very often take templates contain statements like the following, which saves the
-text in the first ``<h1>`` in the document into the result ``dict``:
+Inline sub-contexts are primarily used with directives. For example, the following take template:
 
 ::
 
     $ h1 | 0 text
         save: section_title
 
-This can be re-written as:
+Can be re-written as:
 
 ::
 
-    $ h1 | 0 text ; save: section_title
+    $ h1 | 0 text ; save: document_title
+
+Both templates save the text in the first ``<h1>`` element into the result ``dict`` with the key ``'document_title'``. More on `save directives <#save-directive>`_ later.
 
 Directives
 ----------
@@ -431,7 +427,7 @@ The following directives are built-in:
 
 -  ``save``, alias ``:``
 
-   -  Saves a context value to a name in the result ``dict``.
+   -  Saves a context value to a key in the result ``dict``.
 
 -  ``save each``
 
