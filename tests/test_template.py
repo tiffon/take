@@ -142,6 +142,26 @@ class TestBaseFunctionality():
         assert data == {'deep': {'value': 'Text in h1'}}
 
 
+    def test_save_attr(self):
+        TMPL = """
+            $ h1 | [id]
+                save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'id-on-h1'
+
+
+    def test_save_absent_attr(self):
+        TMPL = """
+            $ h1 | [mia]
+                save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == None
+
+
     def test_sub_ctx(self):
         TMPL = """
             $ section
