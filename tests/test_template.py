@@ -162,7 +162,7 @@ class TestBaseFunctionality():
         assert data['value'] == None
 
 
-    def test_sub_ctx(self):
+    def test_sub_ctx_save(self):
         TMPL = """
             $ section
                 $ ul | [id]
@@ -173,7 +173,18 @@ class TestBaseFunctionality():
         assert data == {'value': 'second-ul'}
 
 
-    def test_sub_ctx_empty(self):
+    def test_sub_ctx_save_alias(self):
+        TMPL = """
+            $ section
+                $ ul | [id]
+                    : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data == {'value': 'second-ul'}
+
+
+    def test_sub_ctx_save_empty(self):
         TMPL = """
             $ nav
                 $ ul | 1 [id]
@@ -184,13 +195,38 @@ class TestBaseFunctionality():
         assert data == {'value': None}
 
 
-    def test_exit_sub_ctx(self):
+    def test_sub_ctx_save_alias_empty(self):
+        TMPL = """
+            $ nav
+                $ ul | 1 [id]
+                    : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data == {'value': None}
+
+
+    def test_exit_sub_ctx_save(self):
         TMPL = """
             $ nav
                 $ ul | 0 [id]
                     save: sub_ctx_value
             $ p | text
                 save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data == {'sub_ctx_value': 'first-ul',
+                        'value': 'some description'}
+
+
+    def test_exit_sub_ctx_save_alias(self):
+        TMPL = """
+            $ nav
+                $ ul | 0 [id]
+                    : sub_ctx_value
+            $ p | text
+                : value
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
@@ -217,6 +253,16 @@ class TestBaseFunctionality():
         data = tt(html_fixture)
         assert data == {'sub_ctx_value': 'first-ul',
                         'value': 'some description'}
+
+
+    def test_comments_id_selector(self):
+        TMPL = """
+            $ #id-on-h1 | [id]
+                save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data == {'value': 'id-on-h1'}
 
 
     def test_save_each(self):
@@ -347,8 +393,8 @@ class TestInvalidTemplates():
         TMPL = """
             $ li
                 save each: items
-            $ h1
-                save: fail
+                $ h1
+                    save: fail
         """
         with pytest.raises(TakeSyntaxError):
             tt = TakeTemplate(TMPL)
@@ -365,6 +411,14 @@ class TestInlineSubCtx():
         data = tt(html_fixture)
         assert data['value'] == 'Text in h1'
 
+    def test_css_sub_ctx_save_alias_nested(self):
+        TMPL = """
+            $ h1 | 0 text ; : parent.value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['parent']['value'] == 'Text in h1'
+
 
     def test_accessor_sub_ctx_save(self):
         TMPL = """
@@ -376,13 +430,36 @@ class TestInlineSubCtx():
         assert data['value'] == 'Text in h1'
 
 
-    def test_css_accessor_sub_ctx_save_alias(self):
+    def test_multiple_inline_sub_ctx(self):
         TMPL = """
-            $ h1 | 0 text ; : value
+            $ h1 ; | 0 ; | text ; : value
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
         assert data['value'] == 'Text in h1'
+
+
+    def test_sub_ctx_of_inline_sub_ctx(self):
+        TMPL = """
+            $ h1 ; | 0 ; | text
+                : value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'Text in h1'
+
+
+    def test_exits_sub_ctx_of_inline_sub_ctx(self):
+        TMPL = """
+            $ h1 ; | 0 ; | text
+                : h1_value
+            $ p | text
+                : p_value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['h1_value'] == 'Text in h1'
+        assert data['p_value'] == 'some description'
 
 
 @pytest.mark.field_accessor
