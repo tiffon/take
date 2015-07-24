@@ -238,14 +238,14 @@ class Scanner(object):
                                         Keywords.statement_end))
 
     def _scan_directive_body(self):
-        self._accept_run(' ')
+        self._accept_run(' \t')
         self._ignore()
         if self._eol or self._c == Keywords.statement_end:
             return self._end_directive()
 
         if self._c == Keywords.continuation:
             self._accept(Keywords.continuation)
-            self._accept_run(' ')
+            self._accept_run(' \t')
             self._ignore()
             if self._eol and not self._next_line():
                 raise ScanError.make(self, 'Unexpected EOF, directive parameter expected.')
@@ -283,7 +283,7 @@ class Scanner(object):
 
     def _scan_css_selector(self):
         self._accept(Keywords.css_start)
-        self._accept_run(' ')
+        self._accept_run(' \t')
         self._ignore()
         if self._accept_until(KeywordSets.css_query_end) < 1:
             raise ScanError.make(self, 'Invalid CSS Selector: %r' % self._to_eol_content)
@@ -304,7 +304,7 @@ class Scanner(object):
         return self._scan_accessor, tok
 
     def _scan_accessor(self):
-        self._accept_run(' ')
+        self._accept_run(' \t')
         self._ignore()
         if self._eol or self._c == Keywords.statement_end:
             return self._end_query()
@@ -325,7 +325,7 @@ class Scanner(object):
             return self._scan_accessor, tok
         # field accessor, ex: `| .field_name`
         elif self._consume(Keywords.field_accessor_start):
-            if self._accept_until(' ') < 1:
+            if self._accept_until(' \t') < 1:
                 raise ScanError.make(self, 'Invalid field accessor, exepected field '
                                            'name instead found: %r' % self._to_eol_content)
             tok = self._make_token(TokenType.FieldAccessor)
@@ -340,6 +340,6 @@ class Scanner(object):
     def _scan_inline_sub_ctx(self):
         self._accept_run(Keywords.statement_end)
         tok = self._make_token(TokenType.InlineSubContext)
-        self._accept_run(' ')
+        self._accept_run(' \t')
         self._ignore()
         return self._scan_statement, tok

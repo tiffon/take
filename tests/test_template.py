@@ -72,6 +72,16 @@ class TestBaseFunctionality():
         assert data['value'].html() == pq_doc('h1').html()
 
 
+    def test_save_css_query_hard_tabs(self):
+        TMPL = """
+\t\t\t$ h1
+\t\t\t\tsave: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'].html() == pq_doc('h1').html()
+
+
     def test_save_css_text_query(self):
         TMPL = """
             $ h1 | text
@@ -167,6 +177,17 @@ class TestBaseFunctionality():
             $ section
                 $ ul | [id]
                     save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data == {'value': 'second-ul'}
+
+
+    def test_sub_ctx_save_hard_tabs(self):
+        TMPL = """
+\t\t\t$ section
+\t\t\t\t\t$ ul\t|\t\t[id]
+\t\t\t\t\t\t\tsave: \t \tvalue
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
@@ -462,6 +483,19 @@ class TestInlineSubCtx():
         assert data['p_value'] == 'some description'
 
 
+    def test_hard_tabs_w_inline_sub_ctxs(self):
+        TMPL = """
+            $ h1 ;\t\t| 0 ;\t\t| text
+                :\t\t\t\t\t\t\t\th1_value
+            $ p | text
+                :\t\t\t\t\t\t\t\tp_value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['h1_value'] == 'Text in h1'
+        assert data['p_value'] == 'some description'
+
+
 @pytest.mark.field_accessor
 class TestFieldAccessor():
 
@@ -473,6 +507,19 @@ class TestFieldAccessor():
             simple
                 | .def_value
                     save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'Text in h1'
+
+    def test_basic_field_accessor_w_hard_tabs(self):
+        TMPL = """
+            def: simple
+                $\th1\t|\t0\ttext
+                    save\t:\tdef_value
+            simple
+                |\t.def_value
+                    save:\tvalue
         """
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)

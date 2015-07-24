@@ -4,6 +4,14 @@ Take Changelog
 Here you can see the full list of changes between each take release.
 
 
+Version 0.2.1
+-------------
+
+Release Pending.
+
+- Support intra-line hard-tabs.
+
+
 Version 0.2.0
 -------------
 
