@@ -188,6 +188,86 @@ def make_shrink(parser):
     return None, _ShrinkNode()
 
 
+class _SetAccessorLastValueContext(tuple):
+    __slots__ = ()
+    def do(self, context):
+        context.rv['__last_value__'] = context.value
+
+
+def make_set_accessor_context(parser):
+    tok = parser.next_tok()
+    # shouldn't have any parameters
+    if tok.type_ != TokenType.DirectiveStatementEnd:
+        raise UnexpectedTokenError(tok.type_, TokenType.DirectiveStatementEnd, token=tok)
+    return None, _SetAccessorLastValueContext()
+
+
+class _CustomAccessor(namedtuple('_CustomAccessor', 'sub_ctx_node')):
+    __slots__ = ()
+    def do(self, context):
+        rv = {}
+        self.sub_ctx_node.do(None, rv, context.value, context.value)
+        context.last_value = rv.get('__last_value__', context.last_value)
+
+
+def make_custom_accessor(parser):
+    name_parts = []
+    tok = parser.next_tok()
+    # can have more than one name to merge
+    while tok.type_ == TokenType.DirectiveBodyItem:
+        name_parts.append(tok.content.strip())
+        tok = parser.next_tok()
+    if not name_parts:
+        raise TakeSyntaxError('The def directive requires a parameter.', tok)
+    accessor_name = ' '.join(name_parts)
+    if tok.type_ != TokenType.DirectiveStatementEnd:
+        raise UnexpectedTokenError(tok.type_, TokenType.DirectiveStatementEnd, token=tok)
+    # consume the context token which should be a sub-context
+    tok = parser.next_tok()
+    if tok.type_ != TokenType.Context:
+        raise UnexpectedTokenError(tok.type_, TokenType.Context, token=tok)
+    if tok.end <= parser.depth:
+        raise TakeSyntaxError('Invalid depth, expecting to start a "def" subroutine context.',
+                              extra=tok)
+    #  parse the sub-context _DefSubroutine will manage
+    sub_ctx = parser.spawn_context_parser()
+    sub_ctx_node, tok = sub_ctx.parse()
+    sub_ctx.destroy()
+    subroutine = _CustomAccessor(sub_ctx_node)
+    parser.defs[accessor_name] = subroutine
+    return tok, None
+
+
+class _RxMatchNode(namedtuple('_RxMatchNode', 'sub_ctx_node')):
+    __slots__ = ()
+    def do(self, context):
+        rx, text = context.value
+        m = rx.search(text)
+        # only execute the sub-context if there was a match
+        if m:
+            value = (m.group(0),) + m.groups()
+            self.sub_ctx_node.do(None, context.rv, value, value)
+
+
+def make_rx_match(parser):
+    tok = parser.next_tok()
+    # expecting only have one parameter
+    if tok.type_ != TokenType.DirectiveStatementEnd:
+        raise UnexpectedTokenError(tok.type_, TokenType.DirectiveStatementEnd, token=tok)
+    # consume the context token which should be a sub-context
+    tok = parser.next_tok()
+    if tok.type_ != TokenType.Context:
+        raise UnexpectedTokenError(tok.type_, TokenType.Context, token=tok)
+    if tok.end <= parser.depth:
+        raise TakeSyntaxError('Invalid depth, expecting to start a "rx match" context.',
+                              extra=tok)
+    #  parse the sub-context SaveEachNode will manage
+    sub_ctx = parser.spawn_context_parser()
+    sub_ctx_node, tok = sub_ctx.parse()
+    sub_ctx.destroy()
+    return tok, _RxMatchNode(sub_ctx_node)
+
+
 BUILTIN_DIRECTIVES = {
     'save':         make_save,
     ':':            make_save,
@@ -198,4 +278,7 @@ BUILTIN_DIRECTIVES = {
     'merge':        make_merge,
     '>>':           make_merge,
     'shrink':       make_shrink,
+    'set context':  make_set_accessor_context,
+    'accessor':     make_custom_accessor,
+    'rx match':     make_rx_match,
 }

@@ -527,3 +527,41 @@ class TestShrinkDirective():
         assert data['em'] != 'with a child em'
         assert data['em_shrunk'] == 'with a child em'
         assert data['auto_texted'] == 'with a child em'
+
+
+@pytest.mark.directives
+@pytest.mark.custom_accessor_directive
+class TestCustomAccessorDirective():
+
+    def test_custom_accessor(self):
+        TMPL = """
+
+            accessor: li-0
+                $ li | 0
+                    set context
+
+            $ ul
+                li-0
+                    | text
+                        : li_0_text
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['li_0_text'] == 'first nav item'
+
+
+    def test_custom_accessor_with_space_in_name(self):
+        TMPL = """
+
+            accessor: li 0
+                $ li | 0
+                    set context
+
+            $ ul
+                li 0
+                    | text
+                        : li_0_text
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['li_0_text'] == 'first nav item'

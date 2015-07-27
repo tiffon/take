@@ -22,10 +22,11 @@ class Keywords(object):
     statement_end = ';'
     params_start = ':'
     continuation = ','
+    regexp_delimiter = '`'
 
 
 class KeywordSets(object):
-    query_start = Keywords.css_start + Keywords.accessor_start
+    query_start = Keywords.css_start + Keywords.accessor_start + Keywords.regexp_delimiter
     css_query_end = Keywords.accessor_start + Keywords.statement_end
     directive_id_end = Keywords.params_start + Keywords.statement_end
     param_end = ' ' + Keywords.statement_end + Keywords.continuation
@@ -36,6 +37,8 @@ TokenType = Enum('TokenType', ' '.join((
     'QueryStatement',
     'QueryStatementEnd',
     'CSSSelector',
+    'TerseRegexp',
+    'VerboseRegexp',
     'AccessorSequence',
     'IndexAccessor',
     'TextAccessor',
@@ -83,7 +86,7 @@ class Scanner(object):
 
     @property
     def _to_eol_content(self):
-        return self.line[self.start:]
+        return self.line[self.pos:]
 
     @property
     def _tok_content(self):
@@ -269,6 +272,8 @@ class Scanner(object):
             return self._scan_css_selector()
         elif self._c == Keywords.accessor_start:
             return self._scan_accessor_sequence()
+        elif self._c == Keywords.regexp_delimiter:
+            return self._scan_regexp()
         else:
             raise ScanError.make(self, 'Invalid query statement: %r' % self._to_eol_content)
 
@@ -336,6 +341,81 @@ class Scanner(object):
                 raise ScanError.make(self, 'Expected an accessor, instead found: %r' % self._to_eol_content)
             tok = self._make_token(TokenType.IndexAccessor)
             return self._scan_accessor, tok
+
+    def _scan_regexp(self):
+        self._accept(Keywords.regexp_delimiter)
+        self._ignore()
+        if not self._accept(Keywords.regexp_delimiter):
+            return self._scan_terse_regexp()
+        else:
+            # is a "```" verbose regexp
+            if not self._accept(Keywords.regexp_delimiter):
+                raise ScanError.make(self, 'Invalid verbose regular expression,'
+                                           ' found two "`" instead of three.')
+            self._ignore()
+            return self._scan_verbose_regexp()
+
+    def _scan_terse_regexp(self):
+        if self._accept_until(Keywords.regexp_delimiter) < 1:
+            raise ScanError.make(self, 'Invalid regexp literal: %r' %
+                                       self._to_eol_content)
+        if self._eol:
+            raise ScanError.make(self, 'Unexpected EOL, closing regexp literal '
+                                       'character ("`") expected.')
+        tok = self._make_token(TokenType.TerseRegexp)
+        self._accept(Keywords.regexp_delimiter)
+        self._accept_run(' \t')
+        self._ignore()
+        if self._eol or self._c == Keywords.statement_end:
+            return self._end_query, tok
+        else:
+            raise ScanError.make(self, 'Invalid end of regexp literal: %r' %
+                                       self._to_eol_content)
+
+    def _scan_verbose_regexp(self):
+        rx_parts = []
+        total_len = 0
+        done = False
+        # while stil searching for end ```
+        while True:
+            # for the entire line, search for ` then check for ```
+            while not self._eol:
+                total_len += self._accept_until(Keywords.regexp_delimiter)
+                if self._to_eol_content.startswith('```'):
+                    # found it, so set to exit outer loop then exit inner loop
+                    done = True
+                    break
+                else:
+                    # is actually just a "`" char in the regexp literal
+                    self._accept('`')
+            rx_parts.append(self._tok_content)
+            if done:
+                break
+            else:
+                if not self._next_line():
+                    raise ScanError.make(self, 'Unexpected EOF, closing regexp '
+                                               'literal sequence ("```") expected.')
+        # found the closing ```, but was there content between them?
+        if not total_len:
+            raise ScanError.make(self, 'Invalid regexp literal: %r' %
+                                       self._to_eol_content)
+        tok = Token(TokenType.VerboseRegexp,
+                    '\n'.join(rx_parts),
+                    self.line,
+                    self.line_num,
+                    -len(''.join(rx_parts)),
+                    self.pos)
+        self.start = self.pos
+        self._accept('`')
+        self._accept('`')
+        self._accept('`')
+        self._accept_run(' \t')
+        self._ignore()
+        if self._eol or self._c == Keywords.statement_end:
+            return self._end_query, tok
+        else:
+            raise ScanError.make(self, 'Invalid end of regexp literal: %r' %
+                                       self._to_eol_content)
 
     def _scan_inline_sub_ctx(self):
         self._accept_run(Keywords.statement_end)

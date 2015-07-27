@@ -1,5 +1,6 @@
-from collections import namedtuple, MutableMapping
+from collections import namedtuple, MutableMapping, Sequence
 from itertools import chain
+import re
 import sys
 
 from pyquery import PyQuery
@@ -26,15 +27,37 @@ def make_css_query(selector):
     return lambda elm: ensure_pq(elm)(selector)
 
 
+def make_regexp_query(rx):
+    def regexp_query(value):
+        if isinstance(value, string_types):
+            return (rx, value)
+        else:
+            return (rx, ensure_pq(value).text())
+    return regexp_query
+
+
 def make_index_query(index_str):
     index = int(index_str)
     if index > -1:
-        return lambda elm: ensure_pq(elm).eq(index)
-    # PyQuery doesn't handle negative indexes, so calc the real index each time
-    def index_query(elm):
-        elm = ensure_pq(elm)
-        i = len(elm) + index
-        return elm.eq(i)
+        def index_query(value):
+            if hasattr(value, 'eq'):
+                return value.eq(index)
+            elif isinstance(value, Sequence) and len(value) > index:
+                return value[index]
+            else:
+                return ensure_pq(elm).eq(index)
+    else:
+        # PyQuery doesn't handle negative indexes, so calc the real index each time
+        def index_query(value):
+            if hasattr(value, 'eq'):
+                i = len(value) + index
+                return value.eq(i)
+            elif isinstance(value, Sequence) and len(value) + index > -1:
+                return value[index]
+            else:
+                elm = ensure_pq(elm)
+                i = len(elm) + index
+                elm.eq(i)
     return index_query
 
 
@@ -269,6 +292,10 @@ class ContextParser(object):
             queries = self._parse_css_selector()
         elif self._tok.type_ == TokenType.AccessorSequence:
             queries = self._parse_accessor_seq()
+        elif self._tok.type_ == TokenType.TerseRegexp:
+            queries = self._parse_regexp(False)
+        elif self._tok.type_ == TokenType.VerboseRegexp:
+            queries = self._parse_regexp(True)
         else:
             raise UnexpectedTokenError(self._tok.type_, (TokenType.CSSSelector,
                                                          TokenType.AccessorSequence))
@@ -335,6 +362,19 @@ class ContextParser(object):
         if tok.type_ != TokenType.QueryStatementEnd:
             raise UnexpectedTokenError(tok.type_, TokenType.QueryStatementEnd, token=tok)
         return queries
+
+    def _parse_regexp(self, verbose):
+        if verbose:
+            rx = re.compile(self._tok.content, re.UNICODE | re.VERBOSE)
+        else:
+            rx = re.compile(self._tok.content, re.UNICODE)
+        # expects a valid css selector
+        query = make_regexp_query(rx)
+        self.next_tok()
+        if self._tok.type_ == TokenType.QueryStatementEnd:
+            return (query,)
+        else:
+            raise UnexpectedTokenError(self._tok.type_, TokenType.QueryStatementEnd)
 
     def _parse_directive(self):
         tok = self.next_tok()

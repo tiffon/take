@@ -4,12 +4,15 @@ Take Changelog
 Here you can see the full list of changes between each take release.
 
 
-Version 0.2.1
+Version 0.3.0
 -------------
 
 Release Pending.
 
 - Support intra-line hard-tabs.
+- Added support for custom accessors.
+- Added support for terse and verbose regular expression literals.
+- Added `rx match` directive.
 
 
 Version 0.2.0

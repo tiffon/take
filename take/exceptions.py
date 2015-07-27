@@ -43,8 +43,8 @@ class UnexpectedTokenError(Exception):
         return ('UnexpectedTokenError {{\n'
                 '       found: {!r}\n'
                 '    expected: {!r}\n'
-                '         message: {!r}\n'
-                '       token: {}\n'
+                '     message: {!r}\n'
+                '       token: {!r}\n'
                 '}}').format(self.found, self.expected, self.message, self.token)
 
 

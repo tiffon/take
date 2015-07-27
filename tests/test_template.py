@@ -512,6 +512,7 @@ class TestFieldAccessor():
         data = tt(html_fixture)
         assert data['value'] == 'Text in h1'
 
+
     def test_basic_field_accessor_w_hard_tabs(self):
         TMPL = """
             def: simple
@@ -524,6 +525,7 @@ class TestFieldAccessor():
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
         assert data['value'] == 'Text in h1'
+
 
     def test_deep_field_accessor(self):
         TMPL = """
@@ -542,6 +544,7 @@ class TestFieldAccessor():
         assert data['raw_result']['item']['def_value'] == 'Text in h1'
         assert data['value'] == 'Text in h1'
 
+
     def test_absent_field(self):
         TMPL = """
             def: simple
@@ -555,6 +558,7 @@ class TestFieldAccessor():
         tt = TakeTemplate(TMPL)
         data = tt(html_fixture)
         assert data['value'] == None
+
 
     def test_deep_absent_field(self):
         TMPL = """
@@ -584,3 +588,109 @@ class TestOwnTextAccessor():
         data = tt(html_fixture)
         assert data['full_text'] == 'own text not own text more own text'
         assert data['own_text'] == 'own text  more own text'
+
+
+@pytest.mark.regexp
+class TestRegexpQuery():
+
+    def test_basic_terse_regexp(self):
+        TMPL = """
+            $ h1 | 0 text
+                `in \w+`
+                    rx match
+                        | 0
+                            save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'in h1'
+
+
+    def test_terse_regexp_capture_groups(self):
+        TMPL = """
+            $ h1 | 0 text
+                `in (\w+)`
+                    rx match
+                        | 0
+                            save: all_match
+                        | 1
+                            save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['all_match'] == 'in h1'
+        assert data['value'] == 'h1'
+
+
+    def test_terse_regexp_custom_accessor(self):
+        TMPL = """
+            accessor: in stuff
+                `in (\w+)`
+                    rx match
+                        set context
+
+            $ h1 | 0 text
+                in stuff
+                    | 0
+                        save: all_match
+                    | 1
+                        save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['all_match'] == 'in h1'
+        assert data['value'] == 'h1'
+
+
+    def test_basic_verbose_regexp(self):
+        TMPL = """
+            $ h1 | 0 text
+                ```
+                    in
+                    \s
+                    \w+
+                ```
+                    rx match
+                        | 0
+                            save: value
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        assert data['value'] == 'in h1'
+
+
+    def test_verbose_url_regexp(self):
+        TMPL = """
+            accessor: url parts
+                ```
+                    (https?)
+                    (://)
+                    ([^/]+)
+                    (?:/(.+))?
+                ```
+                    set context
+
+            $ #second-ul a
+                save each                   : urls
+                    | [href]
+                        url parts
+                            rx match
+                                | 1 ;           : protocol
+                                | 3 ;           : domain
+                                | 4 ;           : page
+        """
+        tt = TakeTemplate(TMPL)
+        data = tt(html_fixture)
+        expect = [
+            {
+                'protocol': 'http',
+                'domain': 'ext.com',
+                'page': 'a'
+            },
+            {
+                'protocol': 'http',
+                'domain': 'ext.com',
+                'page': 'b'
+            }
+        ]
+        assert data['urls'] == expect
