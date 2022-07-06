@@ -65,7 +65,7 @@ setup(
     install_requires=[
         "cssselect==0.9.1",
         "enum34==1.0.4",
-        "lxml==3.4.2",
+        "lxml==4.9.1",
         "pyquery==1.2.9"
     ],
     include_package_data=True
